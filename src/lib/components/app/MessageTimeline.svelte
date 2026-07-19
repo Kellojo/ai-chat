@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { Markdown } from '$lib/components/ai/markdown/index.js';
-	import {
-		Message,
-		MessageActions,
-		MessageContent
-	} from '$lib/components/ai/message/index.js';
+	import { Message, MessageActions, MessageContent } from '$lib/components/ai/message/index.js';
 	import {
 		Reasoning,
 		ReasoningTrigger,
@@ -70,7 +66,11 @@
 						<Markdown class="w-full max-w-none" content={part.text} />
 					{/if}
 				{:else if part.type === 'reasoning'}
-					<Reasoning isStreaming={streaming && isLastAssistant(index) && partIndex === message.parts.length - 1}>
+					<Reasoning
+						isStreaming={streaming &&
+							isLastAssistant(index) &&
+							partIndex === message.parts.length - 1}
+					>
 						<ReasoningTrigger>Reasoning</ReasoningTrigger>
 						<ReasoningContent content={part.text} />
 					</Reasoning>
@@ -79,7 +79,7 @@
 					{#if part.mediaType?.startsWith('image/')}
 						<img src={url} alt="Attachment" class="max-h-64 rounded-md border" />
 					{:else}
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic attachment URL from DB -->
+						<!-- eslint-disable svelte/no-navigation-without-resolve -->
 						<a
 							href={url}
 							target="_blank"
@@ -89,6 +89,7 @@
 							<FileIcon class="size-4" />
 							{(part as { filename?: string }).filename ?? 'Attachment'}
 						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
 				{:else if part.type.startsWith('tool-') || part.type === 'dynamic-tool'}
 					<Badge variant="outline" class="font-mono text-xs">

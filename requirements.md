@@ -488,7 +488,7 @@ Skills themselves are files on disk (§9.2) and have no DB table. Only the invoc
 
 - Anthropic (via `@ai-sdk/anthropic`).
 - OpenAI-compatible (via `@ai-sdk/openai-compatible`: base URL + key — covers OpenAI, OpenRouter, Groq, Together, etc.).
-- LM Studio (OpenAI-compatible pointed at `http://host.docker.internal:1234/v1` by default).
+- LM Studio (OpenAI-compatible pointed at `http://localhost:1234` by default).
 - Each provider has: name, type, base_url, encrypted api_key, enabled flag.
 - Adding a provider triggers a "fetch models" call to populate `models`; user can also add model entries manually.
 
@@ -526,26 +526,26 @@ Skills themselves are files on disk (§9.2) and have no DB table. Only the invoc
 
 ## 16. Environment Variables
 
-| Var                       | Default                               | Description                                                     |
-| ------------------------- | ------------------------------------- | --------------------------------------------------------------- |
-| `DATABASE_PATH`           | `/data/ai-chat.db`                    | SQLite file path                                                |
-| `MEMORY_VOLUME`           | `/memory`                             | OKF bundles root                                                |
-| `DOCUMENTS_VOLUME`        | `/documents`                          | Shared documents volume                                         |
-| `WORKSPACES_VOLUME`       | `/workspaces`                         | Per-conversation workspaces root                                |
-| `WORKSPACE_GC_DAYS`       | `30`                                  | Idle days before a workspace is GC'd                            |
-| `TZ`                      | `UTC`                                 | Container timezone; used by agent scheduler                     |
-| `ENABLE_SIGNUP`           | `true`                                | Allow new sign-ups                                              |
-| `ENABLE_PASSWORD_LOGIN`   | `true`                                | Allow username/password login                                   |
-| `OIDC_ONLY`               | `false`                               | When true, only OIDC login is accepted                          |
-| `OIDC_ISSUER`             | —                                     | OIDC issuer URL                                                 |
-| `OIDC_CLIENT_ID`          | —                                     | OIDC client ID                                                  |
-| `OIDC_CLIENT_SECRET`      | —                                     | OIDC client secret                                              |
-| `OIDC_SCOPES`             | `openid profile email`                | OIDC scopes                                                     |
-| `AUTO_PROMOTE_FIRST_USER` | `true`                                | First registered user becomes admin                             |
-| `MEMORY_EXTRACT_SCHEDULE` | `*/15 * * * *`                        | Cron schedule for the built-in memory-extraction agent          |
-| `LM_STUDIO_BASE_URL`      | `http://host.docker.internal:1234/v1` | Default base URL for the preconfigured LM Studio provider entry |
-| `AGENT_MAX_STEPS`         | `25`                                  | Default `stopWhen` step cap for agent-mode conversations        |
-| `PORT`                    | `3000`                                | HTTP port the app listens on                                    |
+| Var                       | Default                 | Description                                                     |
+| ------------------------- | ----------------------- | --------------------------------------------------------------- |
+| `DATABASE_PATH`           | `/data/ai-chat.db`      | SQLite file path                                                |
+| `MEMORY_VOLUME`           | `/memory`               | OKF bundles root                                                |
+| `DOCUMENTS_VOLUME`        | `/documents`            | Shared documents volume                                         |
+| `WORKSPACES_VOLUME`       | `/workspaces`           | Per-conversation workspaces root                                |
+| `WORKSPACE_GC_DAYS`       | `30`                    | Idle days before a workspace is GC'd                            |
+| `TZ`                      | `UTC`                   | Container timezone; used by agent scheduler                     |
+| `ENABLE_SIGNUP`           | `true`                  | Allow new sign-ups                                              |
+| `ENABLE_PASSWORD_LOGIN`   | `true`                  | Allow username/password login                                   |
+| `OIDC_ONLY`               | `false`                 | When true, only OIDC login is accepted                          |
+| `OIDC_ISSUER`             | —                       | OIDC issuer URL                                                 |
+| `OIDC_CLIENT_ID`          | —                       | OIDC client ID                                                  |
+| `OIDC_CLIENT_SECRET`      | —                       | OIDC client secret                                              |
+| `OIDC_SCOPES`             | `openid profile email`  | OIDC scopes                                                     |
+| `AUTO_PROMOTE_FIRST_USER` | `true`                  | First registered user becomes admin                             |
+| `MEMORY_EXTRACT_SCHEDULE` | `*/15 * * * *`          | Cron schedule for the built-in memory-extraction agent          |
+| `LM_STUDIO_BASE_URL`      | `http://localhost:1234` | Default base URL for the preconfigured LM Studio provider entry |
+| `AGENT_MAX_STEPS`         | `25`                    | Default `stopWhen` step cap for agent-mode conversations        |
+| `PORT`                    | `3000`                  | HTTP port the app listens on                                    |
 
 Secrets (OIDC client secret, provider API keys) are encrypted at rest with a key derived from `APP_SECRET` (required env var; generated on first run if absent and logged once).
 

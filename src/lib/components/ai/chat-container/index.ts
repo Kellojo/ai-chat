@@ -1,5 +1,5 @@
-import ChatContainer from "./chat-container.svelte";
-import ChatContainerContent from "./chat-container-content.svelte";
+import ChatContainer from './chat-container.svelte';
+import ChatContainerContent from './chat-container-content.svelte';
 import {
 	getChatContainerContext,
 	type ChatContainerAnimation,
@@ -8,7 +8,7 @@ import {
 	type ChatContainerInitialAnimation,
 	type ChatContainerScrollToBottomOptions,
 	type ChatContainerSpringAnimation
-} from "./context.svelte";
+} from './context.svelte';
 
 export {
 	ChatContainer,

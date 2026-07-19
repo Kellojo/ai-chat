@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import type { Snippet } from "svelte";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
 		class: className,
@@ -13,9 +13,6 @@
 	} & HTMLAttributes<HTMLDivElement> = $props();
 </script>
 
-<div
-	class={cn("flex items-center gap-2 text-muted-foreground", className)}
-	{...restProps}
->
+<div class={cn('flex items-center gap-2 text-muted-foreground', className)} {...restProps}>
 	{@render children()}
 </div>

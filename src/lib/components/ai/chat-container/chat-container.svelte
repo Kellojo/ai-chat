@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { watch } from "runed";
-	import { cn } from "$lib/utils";
+	import { watch } from 'runed';
+	import { cn } from '$lib/utils';
 	import {
 		setChatContainerContext,
 		type ChatContainerAnimation,
 		type ChatContainerInitialAnimation
-	} from "./context.svelte.js";
+	} from './context.svelte.js';
 
 	let {
 		ref = $bindable<HTMLDivElement | null>(null),
 		children,
 		class: className,
-		resize = "smooth",
-		initial = "instant",
+		resize = 'smooth',
+		initial = 'instant',
 		...restProps
 	}: {
 		ref?: HTMLDivElement | null;
-		children?: import("svelte").Snippet;
+		children?: import('svelte').Snippet;
 		class?: string;
 		resize?: ChatContainerAnimation;
 		initial?: ChatContainerInitialAnimation;
@@ -52,7 +52,7 @@
 
 <div
 	{@attach bindScrollElement}
-	class={cn("flex overflow-y-auto", className)}
+	class={cn('flex overflow-y-auto', className)}
 	role="log"
 	{...restProps}
 >

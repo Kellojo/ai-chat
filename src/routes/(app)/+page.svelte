@@ -50,7 +50,12 @@
 		<PromptInput value={input} onValueChange={(v) => (input = v)} onSubmit={() => startChat(input)}>
 			<PromptInputTextarea placeholder="Ask anything…" />
 			<PromptInputActions class="justify-end">
-				<Button size="sm" aria-label="Send" disabled={busy || !input.trim()} onclick={() => startChat(input)}>
+				<Button
+					size="sm"
+					aria-label="Send"
+					disabled={busy || !input.trim()}
+					onclick={() => startChat(input)}
+				>
 					<ArrowUpIcon class="size-4" />
 				</Button>
 			</PromptInputActions>

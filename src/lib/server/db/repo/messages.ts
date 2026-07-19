@@ -90,7 +90,9 @@ export function updateMessage(
 	const existing = getMessage(db, id);
 	if (!existing) return undefined;
 	const parts = patch.parts !== undefined ? JSON.stringify(patch.parts) : existing.parts;
-	db.prepare('UPDATE messages SET parts = ?, content_text = ?, status = ?, error = ? WHERE id = ?').run(
+	db.prepare(
+		'UPDATE messages SET parts = ?, content_text = ?, status = ?, error = ? WHERE id = ?'
+	).run(
 		parts,
 		patch.parts !== undefined ? extractText(patch.parts) : existing.content_text,
 		patch.status ?? existing.status,
@@ -106,9 +108,7 @@ export function deleteMessage(db: Db, id: string): boolean {
 
 export function deleteMessagesNotIn(db: Db, conversationId: string, keepIds: string[]): number {
 	if (keepIds.length === 0) {
-		return db
-			.prepare('DELETE FROM messages WHERE conversation_id = ?')
-			.run(conversationId).changes;
+		return db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(conversationId).changes;
 	}
 	const placeholders = keepIds.map(() => '?').join(', ');
 	return db

@@ -19,8 +19,11 @@ export interface ChatModel {
 	displayName: string;
 	capabilities: string[];
 	enabled: boolean;
-	isDefaultFor: 'chat' | 'memory' | 'research' | null;
 }
+
+export type ModelRole = 'chat' | 'title' | 'memory' | 'research';
+
+export type RoleDefaults = Partial<Record<ModelRole, string>>;
 
 export interface ModelsByProvider {
 	provider: Provider;

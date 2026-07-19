@@ -5,7 +5,8 @@ import {
 	createModel,
 	findRoleModel,
 	listEnabledModels,
-	setModelRole,
+	listRoleDefaults,
+	setRoleDefault,
 	upsertFetchedModels
 } from './models.js';
 
@@ -23,19 +24,23 @@ describe('models repo', () => {
 		expect(upsertFetchedModels(db, providerId, ['b', 'c'])).toEqual({ added: 1, total: 2 });
 	});
 
-	it('setModelRole makes the role exclusive', () => {
+	it('setRoleDefault assigns one model per role and allows reuse across roles', () => {
 		const m1 = createModel(db, { providerId, modelId: 'one' });
 		const m2 = createModel(db, { providerId, modelId: 'two' });
-		setModelRole(db, m1.id, 'chat');
-		setModelRole(db, m2.id, 'chat');
+		setRoleDefault(db, 'chat', m1.id);
+		setRoleDefault(db, 'chat', m2.id);
 		expect(findRoleModel(db, 'chat')!.id).toBe(m2.id);
-		setModelRole(db, m2.id, null);
+		setRoleDefault(db, 'memory', m2.id);
+		expect(findRoleModel(db, 'memory')!.id).toBe(m2.id);
+		expect(listRoleDefaults(db)).toEqual({ chat: m2.id, memory: m2.id });
+		setRoleDefault(db, 'chat', null);
 		expect(findRoleModel(db, 'chat')).toBeUndefined();
+		expect(findRoleModel(db, 'memory')!.id).toBe(m2.id);
 	});
 
 	it('role + enabled lookups skip disabled models and providers', () => {
 		const m = createModel(db, { providerId, modelId: 'one' });
-		setModelRole(db, m.id, 'memory');
+		setRoleDefault(db, 'memory', m.id);
 		expect(findRoleModel(db, 'memory')!.id).toBe(m.id);
 
 		db.prepare('UPDATE models SET enabled = 0 WHERE id = ?').run(m.id);

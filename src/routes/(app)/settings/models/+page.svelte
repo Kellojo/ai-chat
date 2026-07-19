@@ -16,14 +16,8 @@
 	let { data }: { data: PageData } = $props();
 
 	type Model = PageData['models'][number];
-	type Role = NonNullable<Model['isDefaultFor']>;
 	type Capability = 'chat' | 'vision' | 'tool_use' | 'streaming';
 
-	const roleLabels: Record<Role, string> = {
-		chat: 'Default chat',
-		memory: 'Memory',
-		research: 'Research'
-	};
 	const allCapabilities: Capability[] = ['chat', 'vision', 'tool_use', 'streaming'];
 
 	let addOpen = $state(false);
@@ -158,7 +152,6 @@
 							<Table.Head>Model ID</Table.Head>
 							<Table.Head>Capabilities</Table.Head>
 							<Table.Head>Enabled</Table.Head>
-							<Table.Head>Default for</Table.Head>
 							<Table.Head class="text-right">Actions</Table.Head>
 						</Table.Row>
 					</Table.Header>
@@ -181,28 +174,6 @@
 											patch(model.id, { enabled: checked }, 'Model updated')}
 									/>
 								</Table.Cell>
-								<Table.Cell>
-									<Select.Root
-										type="single"
-										value={model.isDefaultFor ?? ''}
-										onValueChange={(value) =>
-											patch(
-												model.id,
-												{ isDefaultFor: value === '' ? null : value },
-												'Role assignment updated'
-											)}
-									>
-										<Select.Trigger size="sm" class="w-36">
-											{model.isDefaultFor ? roleLabels[model.isDefaultFor] : '—'}
-										</Select.Trigger>
-										<Select.Content>
-											<Select.Item value="">—</Select.Item>
-											{#each Object.entries(roleLabels) as [value, label] (value)}
-												<Select.Item {value}>{label}</Select.Item>
-											{/each}
-										</Select.Content>
-									</Select.Root>
-								</Table.Cell>
 								<Table.Cell class="text-right">
 									<div class="flex justify-end gap-2">
 										<Button variant="outline" size="sm" onclick={() => openCaps(model)}>
@@ -216,7 +187,7 @@
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={6} class="text-center text-muted-foreground">
+								<Table.Cell colspan={5} class="text-center text-muted-foreground">
 									No models. Use "Fetch models" on the Providers page or add one manually.
 								</Table.Cell>
 							</Table.Row>
@@ -231,8 +202,8 @@
 
 	<Separator />
 	<p class="text-sm text-muted-foreground">
-		Role assignments pick the model used for new chats, the memory extraction job, and research
-		sessions. Each role can have one model.
+		To pick which model is used for new chats, title generation, memory, and research, see the
+		Defaults page.
 	</p>
 </div>
 

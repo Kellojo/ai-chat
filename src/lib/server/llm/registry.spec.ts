@@ -56,7 +56,7 @@ describe('llm registry', () => {
 		expect(() => registry.roleModel('chat')).toThrow(registry.ModelUnavailableError);
 		const p = providers.createProvider(db, { name: 'A', type: 'anthropic' });
 		const m = models.createModel(db, { providerId: p.id, modelId: 'chatty' });
-		models.setModelRole(db, m.id, 'chat');
+		models.setRoleDefault(db, 'chat', m.id);
 		expect((registry.roleModel('chat') as { modelId: string }).modelId).toBe('chatty');
 	});
 

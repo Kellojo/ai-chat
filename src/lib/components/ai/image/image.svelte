@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import type { HTMLImgAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import type { HTMLImgAttributes } from 'svelte/elements';
 
 	export type GeneratedImageLike = {
 		base64?: string;
@@ -11,12 +11,12 @@
 	type Props = GeneratedImageLike & {
 		alt: string;
 		class?: string;
-	} & Omit<HTMLImgAttributes, "src" | "alt" | "class">;
+	} & Omit<HTMLImgAttributes, 'src' | 'alt' | 'class'>;
 
 	let {
 		base64,
 		uint8Array,
-		mediaType = "image/png",
+		mediaType = 'image/png',
 		class: className,
 		alt,
 		...props
@@ -45,7 +45,7 @@
 		aria-label={alt}
 		role="img"
 		class={cn(
-			"h-auto max-w-full animate-pulse overflow-hidden rounded-md bg-gray-100 dark:bg-neutral-800",
+			'h-auto max-w-full animate-pulse overflow-hidden rounded-md bg-gray-100 dark:bg-neutral-800',
 			className
 		)}
 	></div>
@@ -53,7 +53,7 @@
 	<img
 		{src}
 		{alt}
-		class={cn("h-auto max-w-full overflow-hidden rounded-md", className)}
+		class={cn('h-auto max-w-full overflow-hidden rounded-md', className)}
 		{...props}
 	/>
 {/if}

@@ -1,23 +1,23 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
+	import { cn } from '$lib/utils';
 
 	interface Props {
 		class?: string;
-		size?: "sm" | "md" | "lg";
+		size?: 'sm' | 'md' | 'lg';
 	}
 
-	let { class: className, size = "md" }: Props = $props();
+	let { class: className, size = 'md' }: Props = $props();
 
 	const sizeClasses = {
-		sm: "size-4",
-		md: "size-5",
-		lg: "size-6"
+		sm: 'size-4',
+		md: 'size-5',
+		lg: 'size-6'
 	};
 </script>
 
 <div
 	class={cn(
-		"animate-spin rounded-full border-2 border-primary border-t-transparent",
+		'animate-spin rounded-full border-2 border-primary border-t-transparent',
 		sizeClasses[size],
 		className
 	)}

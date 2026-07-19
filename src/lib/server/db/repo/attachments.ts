@@ -22,9 +22,7 @@ export function createAttachment(
 }
 
 export function getAttachment(db: Db, id: string): AttachmentRow | undefined {
-	return db.prepare('SELECT * FROM attachments WHERE id = ?').get(id) as
-		| AttachmentRow
-		| undefined;
+	return db.prepare('SELECT * FROM attachments WHERE id = ?').get(id) as AttachmentRow | undefined;
 }
 
 export function linkAttachmentsToMessage(db: Db, messageId: string, ids: string[]): void {

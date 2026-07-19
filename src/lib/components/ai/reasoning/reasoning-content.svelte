@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { getReasoningContext } from "./context.svelte.js";
-	import { cn } from "$lib/utils";
-	import { watch } from "runed";
-	import type { Snippet } from "svelte";
-	import { Streamdown } from "streamdown-svelte";
-	import { mode } from "mode-watcher";
+	import { getReasoningContext } from './context.svelte.js';
+	import { cn } from '$lib/utils';
+	import { watch } from 'runed';
+	import type { Snippet } from 'svelte';
+	import { Streamdown } from 'streamdown-svelte';
+	import { mode } from 'mode-watcher';
 
 	// Import Shiki themes
-	import githubLightDefault from "@shikijs/themes/github-light-default";
-	import githubDarkDefault from "@shikijs/themes/github-dark-default";
-	import { code } from "@streamdown-svelte/code";
+	import githubLightDefault from '@shikijs/themes/github-light-default';
+	import githubDarkDefault from '@shikijs/themes/github-dark-default';
+	import { code } from '@streamdown-svelte/code';
 
 	interface Props {
 		children?: Snippet;
@@ -57,29 +57,21 @@
 	);
 
 	// Compute max height reactively
-	let maxHeight = $derived(
-		context.isOpen && contentRef ? `${contentRef.scrollHeight}px` : "0px"
-	);
+	let maxHeight = $derived(context.isOpen && contentRef ? `${contentRef.scrollHeight}px` : '0px');
 	let currentTheme = $derived(
-		mode.current === "dark" ? "github-dark-default" : "github-light-default"
+		mode.current === 'dark' ? 'github-dark-default' : 'github-light-default'
 	);
 </script>
 
 <div
 	bind:this={contentRef}
-	class={cn(
-		"overflow-hidden transition-[max-height] duration-150 ease-out",
-		className
-	)}
+	class={cn('overflow-hidden transition-[max-height] duration-150 ease-out', className)}
 	style:max-height={maxHeight}
 	{...rest}
 >
 	<div
 		bind:this={innerRef}
-		class={cn(
-			"prose prose-sm dark:prose-invert text-muted-foreground",
-			contentClass
-		)}
+		class={cn('prose prose-sm dark:prose-invert text-muted-foreground', contentClass)}
 	>
 		{#if content}
 			<!-- Basic -->
@@ -90,8 +82,8 @@
 				class="pb-4 [&>*:first-child]:mt-2 [&>*:last-child]:mb-0"
 				shikiTheme={currentTheme}
 				shikiThemes={{
-					"github-light-default": githubLightDefault,
-					"github-dark-default": githubDarkDefault
+					'github-light-default': githubLightDefault,
+					'github-dark-default': githubDarkDefault
 				}}
 				baseTheme="shadcn"
 				plugins={{ code }}

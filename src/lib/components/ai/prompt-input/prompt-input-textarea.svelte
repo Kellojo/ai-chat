@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import Textarea from "$lib/components/ui/textarea/textarea.svelte";
-	import { getPromptInputContext } from "./context.svelte.js";
-	import type { HTMLTextareaAttributes } from "svelte/elements";
-	import { watch } from "runed";
+	import { cn } from '$lib/utils';
+	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
+	import { getPromptInputContext } from './context.svelte.js';
+	import type { HTMLTextareaAttributes } from 'svelte/elements';
+	import { watch } from 'runed';
 
 	let {
 		class: className,
@@ -17,27 +17,22 @@
 	const context = getPromptInputContext();
 
 	// Auto-resize functionality using watch from runed
-	watch(
-		[() => context.value, () => context.maxHeight, () => disableAutosize],
-		() => {
-			if (disableAutosize) return;
-			if (!context.textareaRef) return;
+	watch([() => context.value, () => context.maxHeight, () => disableAutosize], () => {
+		if (disableAutosize) return;
+		if (!context.textareaRef) return;
 
-			if (context.textareaRef.scrollTop === 0) {
-				context.textareaRef.style.height = "auto";
-			}
-
-			context.textareaRef.style.height =
-				typeof context.maxHeight === "number"
-					? `${Math.min(context.textareaRef.scrollHeight, context.maxHeight)}px`
-					: `min(${context.textareaRef.scrollHeight}px, ${context.maxHeight})`;
+		if (context.textareaRef.scrollTop === 0) {
+			context.textareaRef.style.height = 'auto';
 		}
-	);
 
-	function handleKeyDown(
-		e: KeyboardEvent & { currentTarget: HTMLTextAreaElement }
-	) {
-		if (e.key === "Enter" && !e.shiftKey) {
+		context.textareaRef.style.height =
+			typeof context.maxHeight === 'number'
+				? `${Math.min(context.textareaRef.scrollHeight, context.maxHeight)}px`
+				: `min(${context.textareaRef.scrollHeight}px, ${context.maxHeight})`;
+	});
+
+	function handleKeyDown(e: KeyboardEvent & { currentTarget: HTMLTextAreaElement }) {
+		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			context.onSubmit?.();
 		}
@@ -55,7 +50,7 @@
 	oninput={handleInput}
 	onkeydown={handleKeyDown}
 	class={cn(
-		"min-h-[44px] w-full resize-none border-none !bg-transparent text-primary shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+		'min-h-[44px] w-full resize-none border-none !bg-transparent text-primary shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
 		className
 	)}
 	rows={1}

@@ -1,6 +1,6 @@
 <script lang="ts" module>
-	import type { Snippet } from "svelte";
-	import type { HTMLAttributes } from "svelte/elements";
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	export type TextShimmerProps = HTMLAttributes<HTMLElement> & {
 		/** The HTML element to render as */
@@ -17,10 +17,10 @@
 </script>
 
 <script lang="ts">
-	import { cn } from "$lib/utils";
+	import { cn } from '$lib/utils';
 
 	let {
-		as = "span",
+		as = 'span',
 		duration = 4,
 		spread = 20,
 		children,
@@ -39,8 +39,8 @@
 <svelte:element
 	this={as}
 	class={cn(
-		"bg-size-[200%_auto] bg-clip-text font-medium text-transparent",
-		"animate-[shimmer_4s_infinite_linear]",
+		'bg-size-[200%_auto] bg-clip-text font-medium text-transparent',
+		'animate-[shimmer_4s_infinite_linear]',
 		className
 	)}
 	style={shimmerStyle}

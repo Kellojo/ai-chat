@@ -35,7 +35,7 @@ describe('db migrations', () => {
 		const versions = db.prepare('SELECT version FROM _migrations ORDER BY version').all() as {
 			version: number;
 		}[];
-		expect(versions.map((v) => v.version)).toEqual([1, 2]);
+		expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]);
 		db.close();
 	});
 

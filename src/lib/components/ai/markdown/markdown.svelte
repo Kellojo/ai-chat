@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import { Streamdown, type StreamdownProps } from "streamdown-svelte";
-	import { mode } from "mode-watcher";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import { Streamdown, type StreamdownProps } from 'streamdown-svelte';
+	import { mode } from 'mode-watcher';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	// Import Shiki themes
-	import githubLightDefault from "@shikijs/themes/github-light-default";
-	import githubDarkDefault from "@shikijs/themes/github-dark-default";
-	import { code } from "@streamdown-svelte/code";
+	import githubLightDefault from '@shikijs/themes/github-light-default';
+	import githubDarkDefault from '@shikijs/themes/github-dark-default';
+	import { code } from '@streamdown-svelte/code';
 
 	type Props = {
 		content: string;
 		id?: string;
 		class?: string;
-	} & Omit<StreamdownProps, "content" | "class"> &
-		Omit<HTMLAttributes<HTMLDivElement>, "content">;
+	} & Omit<StreamdownProps, 'content' | 'class'> &
+		Omit<HTMLAttributes<HTMLDivElement>, 'content'>;
 
 	let { content, id, class: className, ...restProps }: Props = $props();
 	let currentTheme = $derived(
-		mode.current === "dark" ? "github-dark-default" : "github-light-default"
+		mode.current === 'dark' ? 'github-dark-default' : 'github-light-default'
 	);
 </script>
 
@@ -29,8 +29,8 @@
 		shikiTheme={currentTheme}
 		baseTheme="shadcn"
 		shikiThemes={{
-			"github-light-default": githubLightDefault,
-			"github-dark-default": githubDarkDefault
+			'github-light-default': githubLightDefault,
+			'github-dark-default': githubDarkDefault
 		}}
 		plugins={{ code }}
 	/>

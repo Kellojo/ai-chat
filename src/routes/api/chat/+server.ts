@@ -25,4 +25,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 };
 
-export const fallback: RequestHandler = () => json({ message: 'Method not allowed' }, { status: 405 });
+export const fallback: RequestHandler = () =>
+	json({ message: 'Method not allowed' }, { status: 405 });

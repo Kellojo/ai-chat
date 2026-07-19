@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import { Tooltip as TooltipPrimitive } from "bits-ui";
+	import { cn } from '$lib/utils';
+	import { Tooltip as TooltipPrimitive } from 'bits-ui';
 	import {
 		PromptInputClass,
 		setPromptInputContext,
 		type PromptInputSchema
-	} from "./context.svelte.js";
-	import { untrack } from "svelte";
-	import { watch } from "runed";
+	} from './context.svelte.js';
+	import { untrack } from 'svelte';
+	import { watch } from 'runed';
 
 	let {
 		class: className,
@@ -19,7 +19,7 @@
 		children
 	}: PromptInputSchema & {
 		class?: string;
-		children: import("svelte").Snippet;
+		children: import('svelte').Snippet;
 	} = $props();
 
 	const contextInstance = new PromptInputClass({
@@ -83,7 +83,7 @@
 	function handleKeyDown(e: KeyboardEvent) {
 		// Only handle Enter key to focus textarea from wrapper
 		// Don't intercept Space key as it prevents typing spaces in the textarea
-		if (e.key === "Enter") {
+		if (e.key === 'Enter') {
 			e.preventDefault();
 			handleClick();
 		}
@@ -93,10 +93,7 @@
 <TooltipPrimitive.Provider>
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
-		class={cn(
-			"cursor-text rounded-3xl border border-input bg-background p-2 shadow-xs",
-			className
-		)}
+		class={cn('cursor-text rounded-3xl border border-input bg-background p-2 shadow-xs', className)}
 		onclick={handleClick}
 		role="button"
 		tabindex="-1"

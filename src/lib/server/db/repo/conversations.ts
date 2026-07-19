@@ -66,11 +66,7 @@ export function listConversations(db: Db, userId: string): ConversationRow[] {
 		.all(userId) as ConversationRow[];
 }
 
-export function getConversation(
-	db: Db,
-	userId: string,
-	id: string
-): ConversationRow | undefined {
+export function getConversation(db: Db, userId: string, id: string): ConversationRow | undefined {
 	return db
 		.prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ? AND deleted_at IS NULL')
 		.get(id, userId) as ConversationRow | undefined;

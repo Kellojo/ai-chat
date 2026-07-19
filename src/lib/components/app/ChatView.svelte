@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
+	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import {
-		ChatContainer,
-		ChatContainerContent
-	} from '$lib/components/ai/chat-container/index.js';
+	import { ChatContainer, ChatContainerContent } from '$lib/components/ai/chat-container/index.js';
+	import { Loader } from '$lib/components/ai/loader/index.js';
 	import {
 		PromptInput,
 		PromptInputTextarea,
@@ -20,7 +19,12 @@
 	import ChatTopbar from './ChatTopbar.svelte';
 	import MessageTimeline from './MessageTimeline.svelte';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
-	import { chatMessageToUIMessage, type ChatMessage, type Conversation, type ModelsByProvider } from '$lib/types.js';
+	import {
+		chatMessageToUIMessage,
+		type ChatMessage,
+		type Conversation,
+		type ModelsByProvider
+	} from '$lib/types.js';
 
 	let {
 		conversation: initialConversation,
@@ -39,10 +43,8 @@
 	let fileInput: HTMLInputElement | undefined = $state();
 
 	const chat = new Chat({
-		// svelte-ignore state_referenced_locally
-		id: conversation.id,
-		// svelte-ignore state_referenced_locally
-		messages: initialMessages.map(chatMessageToUIMessage),
+		id: untrack(() => conversation.id),
+		messages: untrack(() => initialMessages.map(chatMessageToUIMessage)),
 		transport: new DefaultChatTransport({
 			api: '/api/chat',
 			prepareSendMessagesRequest: ({ messages }) => ({
@@ -55,6 +57,7 @@
 	});
 
 	const streaming = $derived(chat.status === 'streaming' || chat.status === 'submitted');
+	const waiting = $derived(chat.status === 'submitted');
 	const canSend = $derived((input.trim().length > 0 || selectedFiles.length > 0) && !streaming);
 
 	$effect(() => {
@@ -62,7 +65,9 @@
 		if (pending) send(pending);
 	});
 
-	async function uploadFiles(): Promise<{ type: 'file'; url: string; mediaType: string; filename: string }[]> {
+	async function uploadFiles(): Promise<
+		{ type: 'file'; url: string; mediaType: string; filename: string }[]
+	> {
 		const parts = [];
 		for (const file of selectedFiles) {
 			const form = new FormData();
@@ -94,10 +99,7 @@
 				const fileParts = await uploadFiles();
 				selectedFiles = [];
 				chat.sendMessage({
-					parts: [
-						...(trimmed ? [{ type: 'text' as const, text: trimmed }] : []),
-						...fileParts
-					]
+					parts: [...(trimmed ? [{ type: 'text' as const, text: trimmed }] : []), ...fileParts]
 				});
 			} else {
 				chat.sendMessage({ text: trimmed });
@@ -135,11 +137,7 @@
 	}
 </script>
 
-<ChatTopbar
-	{conversation}
-	{groups}
-	onupdated={(updated) => (conversation = updated)}
-/>
+<ChatTopbar {conversation} {groups} onupdated={(updated) => (conversation = updated)} />
 
 <ChatContainer class="min-h-0 flex-1">
 	<ChatContainerContent>
@@ -149,6 +147,12 @@
 			onregenerate={regenerate}
 			onedit={startEdit}
 		/>
+		{#if waiting}
+			<div class="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-4 text-muted-foreground">
+				<Loader variant="typing" size="sm" />
+				<span class="text-sm">Thinking…</span>
+			</div>
+		{/if}
 	</ChatContainerContent>
 </ChatContainer>
 
@@ -168,7 +172,12 @@
 			{/each}
 		</div>
 	{/if}
-	<PromptInput value={input} onValueChange={(v) => (input = v)} isLoading={streaming} onSubmit={() => send(input)}>
+	<PromptInput
+		value={input}
+		onValueChange={(v) => (input = v)}
+		isLoading={streaming}
+		onSubmit={() => send(input)}
+	>
 		<PromptInputTextarea placeholder="Ask anything…" />
 		<PromptInputActions class="justify-between">
 			<Button variant="ghost" size="icon" aria-label="Attach files" onclick={pickFiles}>

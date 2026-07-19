@@ -6,7 +6,8 @@
 
 	const sections = [
 		{ href: '/settings/providers', label: 'Providers' },
-		{ href: '/settings/models', label: 'Models' }
+		{ href: '/settings/models', label: 'Models' },
+		{ href: '/settings/defaults', label: 'Defaults' }
 	] as const;
 </script>
 

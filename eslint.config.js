@@ -40,5 +40,15 @@ export default defineConfig(
 		rules: {
 			'svelte/no-navigation-without-resolve': 'off'
 		}
+	},
+	{
+		// Generated sv-prompt-kit components are vendored third-party code.
+		files: ['src/lib/components/ai/**/*.{svelte,ts}'],
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-unused-vars': 'off',
+			'no-useless-assignment': 'off',
+			'svelte/require-each-key': 'off'
+		}
 	}
 );

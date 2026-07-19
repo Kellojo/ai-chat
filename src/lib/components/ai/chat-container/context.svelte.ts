@@ -1,5 +1,5 @@
-import { createContext } from "svelte";
-import { StickToBottom } from "stick-to-bottom-svelte";
+import { createContext } from 'svelte';
+import { StickToBottom } from 'stick-to-bottom-svelte';
 
 const DEFAULT_SPRING = {
 	damping: 0.7,
@@ -9,26 +9,24 @@ const DEFAULT_SPRING = {
 
 const SPRING_PRESETS = {
 	smooth: DEFAULT_SPRING,
-	"ease-out": {
+	'ease-out': {
 		damping: 0.82,
 		stiffness: 0.045,
 		mass: 1.2
 	}
 } as const;
 
-type ChatContainerAnimationPreset = "instant" | keyof typeof SPRING_PRESETS;
+type ChatContainerAnimationPreset = 'instant' | keyof typeof SPRING_PRESETS;
 type ChatContainerSpringAnimation = {
 	damping?: number;
 	stiffness?: number;
 	mass?: number;
 };
-type ChatContainerAnimation =
-	| ChatContainerAnimationPreset
-	| ChatContainerSpringAnimation;
+type ChatContainerAnimation = ChatContainerAnimationPreset | ChatContainerSpringAnimation;
 type ChatContainerInitialAnimation = ChatContainerAnimation | false;
-type ResolvedAnimation = "instant" | Required<ChatContainerSpringAnimation>;
+type ResolvedAnimation = 'instant' | Required<ChatContainerSpringAnimation>;
 type ChatContainerScrollToBottomOptions =
-	| "instant"
+	| 'instant'
 	| {
 			animation?: ChatContainerAnimation;
 			wait?: boolean | number;
@@ -44,14 +42,12 @@ type MutableStickToBottomOptions = {
 	initial: ResolvedAnimation | false;
 };
 
-function normalizeAnimation(
-	animation: ChatContainerAnimation
-): ResolvedAnimation {
-	if (animation === "instant") {
-		return "instant";
+function normalizeAnimation(animation: ChatContainerAnimation): ResolvedAnimation {
+	if (animation === 'instant') {
+		return 'instant';
 	}
 
-	if (typeof animation === "string") {
+	if (typeof animation === 'string') {
 		return { ...SPRING_PRESETS[animation] };
 	}
 
@@ -78,8 +74,8 @@ class ChatContainerContext {
 	#stickToBottom: StickToBottom;
 
 	constructor(
-		resize: ChatContainerAnimation = "smooth",
-		initial: ChatContainerInitialAnimation = "instant"
+		resize: ChatContainerAnimation = 'smooth',
+		initial: ChatContainerInitialAnimation = 'instant'
 	) {
 		this.#options = {
 			scrollElement: () => this.#scrollElement,
@@ -130,15 +126,13 @@ class ChatContainerContext {
 			});
 		}
 
-		if (options === "instant") {
-			return this.#stickToBottom.scrollToBottom("instant");
+		if (options === 'instant') {
+			return this.#stickToBottom.scrollToBottom('instant');
 		}
 
 		return this.#stickToBottom.scrollToBottom({
 			...options,
-			animation: options.animation
-				? normalizeAnimation(options.animation)
-				: undefined
+			animation: options.animation ? normalizeAnimation(options.animation) : undefined
 		});
 	};
 
@@ -151,19 +145,15 @@ const [getChatContainerContext, setInternalChatContainerContext] =
 	createContext<ChatContainerContext>();
 
 function setChatContainerContext(
-	resize: ChatContainerAnimation = "smooth",
-	initial: ChatContainerInitialAnimation = "instant"
+	resize: ChatContainerAnimation = 'smooth',
+	initial: ChatContainerInitialAnimation = 'instant'
 ): ChatContainerContext {
 	const context = new ChatContainerContext(resize, initial);
 	setInternalChatContainerContext(context);
 	return context;
 }
 
-export {
-	ChatContainerContext,
-	getChatContainerContext,
-	setChatContainerContext
-};
+export { ChatContainerContext, getChatContainerContext, setChatContainerContext };
 export type {
 	ChatContainerAnimation,
 	ChatContainerAnimationPreset,

@@ -94,7 +94,12 @@
 				onCheckedChange={(v) => patch({ mode: v ? 'agent' : 'chat' })}
 			/>
 		</Label>
-		<Button variant="ghost" size="icon" aria-label="Conversation settings" onclick={() => (settingsOpen = true)}>
+		<Button
+			variant="ghost"
+			size="icon"
+			aria-label="Conversation settings"
+			onclick={() => (settingsOpen = true)}
+		>
 			<SettingsIcon class="size-4" />
 		</Button>
 	</div>

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Db } from '../index.js';
 
-export type ModelRole = 'chat' | 'memory' | 'research';
+export const MODEL_ROLES = ['chat', 'title', 'memory', 'research'] as const;
+export type ModelRole = (typeof MODEL_ROLES)[number];
 
 export interface ModelRow {
 	id: string;
@@ -10,7 +11,6 @@ export interface ModelRow {
 	display_name: string;
 	capabilities: string;
 	enabled: number;
-	is_default_for: string | null;
 }
 
 export interface ChatModel {
@@ -20,7 +20,6 @@ export interface ChatModel {
 	displayName: string;
 	capabilities: string[];
 	enabled: boolean;
-	isDefaultFor: ModelRole | null;
 }
 
 export function toPublic(row: ModelRow): ChatModel {
@@ -30,8 +29,7 @@ export function toPublic(row: ModelRow): ChatModel {
 		modelId: row.model_id,
 		displayName: row.display_name,
 		capabilities: JSON.parse(row.capabilities) as string[],
-		enabled: row.enabled === 1,
-		isDefaultFor: (row.is_default_for as ModelRole | null) ?? null
+		enabled: row.enabled === 1
 	};
 }
 
@@ -110,24 +108,31 @@ export function deleteModel(db: Db, id: string): boolean {
 	return db.prepare('DELETE FROM models WHERE id = ?').run(id).changes > 0;
 }
 
-export function setModelRole(db: Db, id: string, role: ModelRole | null): ModelRow | undefined {
-	const existing = getModel(db, id);
-	if (!existing) return undefined;
-	db.transaction(() => {
-		if (role) {
-			db.prepare('UPDATE models SET is_default_for = NULL WHERE is_default_for = ?').run(role);
-		}
-		db.prepare('UPDATE models SET is_default_for = ? WHERE id = ?').run(role, id);
-	})();
-	return getModel(db, id);
+export function listRoleDefaults(db: Db): Partial<Record<ModelRole, string>> {
+	const rows = db.prepare('SELECT role, model_id FROM role_defaults').all() as {
+		role: ModelRole;
+		model_id: string;
+	}[];
+	return Object.fromEntries(rows.map((r) => [r.role, r.model_id]));
+}
+
+export function setRoleDefault(db: Db, role: ModelRole, modelId: string | null): void {
+	if (modelId === null) {
+		db.prepare('DELETE FROM role_defaults WHERE role = ?').run(role);
+		return;
+	}
+	db.prepare(
+		'INSERT INTO role_defaults (role, model_id) VALUES (?, ?) ON CONFLICT(role) DO UPDATE SET model_id = excluded.model_id'
+	).run(role, modelId);
 }
 
 export function findRoleModel(db: Db, role: ModelRole): ModelRow | undefined {
 	return db
 		.prepare(
-			`SELECT m.* FROM models m
+			`SELECT m.* FROM role_defaults r
+			 JOIN models m ON m.id = r.model_id
 			 JOIN providers p ON p.id = m.provider_id
-			 WHERE m.is_default_for = ? AND m.enabled = 1 AND p.enabled = 1`
+			 WHERE r.role = ? AND m.enabled = 1 AND p.enabled = 1`
 		)
 		.get(role) as ModelRow | undefined;
 }

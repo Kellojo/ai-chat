@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import type { Snippet } from "svelte";
-	import type { HTMLAttributes } from "svelte/elements";
-	import { Markdown } from "$lib/components/ai/markdown";
+	import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { Markdown } from '$lib/components/ai/markdown';
 
 	let {
 		markdown = false,
@@ -21,7 +21,7 @@
 {#if markdown && content}
 	<Markdown
 		class={cn(
-			"prose rounded-lg bg-secondary p-2 wrap-break-word whitespace-normal text-foreground",
+			'prose rounded-lg bg-secondary p-2 wrap-break-word whitespace-normal text-foreground',
 			className
 		)}
 		{content}
@@ -29,7 +29,7 @@
 {:else}
 	<div
 		class={cn(
-			"prose rounded-lg bg-secondary p-2 wrap-break-word whitespace-normal text-foreground",
+			'prose rounded-lg bg-secondary p-2 wrap-break-word whitespace-normal text-foreground',
 			className
 		)}
 		{...restProps}

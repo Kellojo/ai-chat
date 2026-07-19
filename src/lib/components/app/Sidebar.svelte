@@ -106,7 +106,7 @@
 		const res = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
 		if (res.ok) {
 			toast.success('Conversation deleted');
-			if (currentId === id) goto(resolve('/'));
+			if (currentId === id) await goto(resolve('/'));
 			await invalidateAll();
 		} else {
 			toast.error('Failed to delete conversation');
@@ -141,7 +141,7 @@
 
 	<nav class="flex-1 overflow-y-auto px-2 pb-2">
 		{#each visibleGroups as group (group.label)}
-			<p class="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground">{group.label}</p>
+			<p class="px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">{group.label}</p>
 			{#each group.items as c (c.id)}
 				<div
 					class="group flex w-full items-center rounded-md text-sm {c.id === currentId

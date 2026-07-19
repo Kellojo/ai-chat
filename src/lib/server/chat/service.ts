@@ -41,11 +41,7 @@ function attachmentIdFromUrl(url: string, conversationId: string): string | null
 	return id || null;
 }
 
-function inlineAttachmentParts(
-	db: Db,
-	conversationId: string,
-	messages: UIMessage[]
-): UIMessage[] {
+function inlineAttachmentParts(db: Db, conversationId: string, messages: UIMessage[]): UIMessage[] {
 	return messages.map((message) => ({
 		...message,
 		parts: message.parts.map((part) => {
@@ -81,7 +77,11 @@ function ensureModel(db: Db, userId: string, conversation: ConversationRow): Con
 }
 
 function syncMessages(db: Db, conversationId: string, incoming: UIMessage[]): UIMessage {
-	deleteMessagesNotIn(db, conversationId, incoming.map((m) => m.id));
+	deleteMessagesNotIn(
+		db,
+		conversationId,
+		incoming.map((m) => m.id)
+	);
 	const last = incoming[incoming.length - 1];
 	if (!last || last.role !== 'user') {
 		throw new ChatRequestError(400, 'Last message must be a user message');
@@ -135,7 +135,9 @@ export async function handleChatRequest(
 	const result = streamText({
 		model,
 		system: buildSystemPrompt(conversation),
-		messages: await convertToModelMessages(inlineAttachmentParts(db, conversation.id, body.messages)),
+		messages: await convertToModelMessages(
+			inlineAttachmentParts(db, conversation.id, body.messages)
+		),
 		stopWhen: stepCountIs(
 			conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
 		),
