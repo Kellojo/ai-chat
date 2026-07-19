@@ -64,6 +64,7 @@
 
 	let prevStatus = $state<string>(chat.status);
 
+	// svelte-ignore state_referenced_locally
 	const messageTimes = new SvelteMap<string, number>(
 		initialMessages.map((m) => [m.id, m.createdAt])
 	);

@@ -7,14 +7,14 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-import {
-	MAX_GLOBAL_INSTRUCTIONS_LENGTH,
-	MAX_SUGGESTIONS,
-	THEMES,
-	TIME_FORMATS,
-	type Theme,
-	type TimeFormat
-} from '$lib/user-settings.js';
+	import {
+		MAX_GLOBAL_INSTRUCTIONS_LENGTH,
+		MAX_SUGGESTIONS,
+		THEMES,
+		TIME_FORMATS,
+		type Theme,
+		type TimeFormat
+	} from '$lib/user-settings.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import type { PageData } from './$types';
 
