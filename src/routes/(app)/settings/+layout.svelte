@@ -10,7 +10,7 @@
 		{ href: '/settings/providers', label: 'Providers', adminOnly: true },
 		{ href: '/settings/models', label: 'Models', adminOnly: true },
 		{ href: '/settings/mcp', label: 'MCP', adminOnly: true },
-		{ href: '/settings/defaults', label: 'Defaults', adminOnly: true }
+		{ href: '/settings/defaults', label: 'Model Defaults', adminOnly: true }
 	] as const;
 
 	const isAdmin = $derived(data.user.role === 'admin');

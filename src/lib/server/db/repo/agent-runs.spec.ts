@@ -1,0 +1,99 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { openDatabase, type Db } from '../index.js';
+import {
+	createAgentRun,
+	failRunningAgentRuns,
+	finishAgentRun,
+	getAgentRun,
+	listAgentRuns,
+	listRunningAgentIds,
+	toPublic
+} from './agent-runs.js';
+import { createAgent } from './agents.js';
+
+let db: Db;
+let agentId: string;
+
+beforeEach(() => {
+	db = openDatabase(':memory:');
+	db.prepare(
+		'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u1\', \'a@b.c\', \'A\', 0, 0, 0, \'user\')'
+	).run();
+	agentId = createAgent(db, 'u1', { name: 'a', systemPrompt: 'x', triggerType: 'manual' }).id;
+});
+
+describe('agent-runs repo', () => {
+	it('creates a running run and finishes it', () => {
+		const run = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		expect(run.status).toBe('running');
+		expect(run.started_at).toBeGreaterThan(0);
+		expect(run.ended_at).toBeNull();
+		finishAgentRun(db, run.id, 'success');
+		const done = getAgentRun(db, run.id)!;
+		expect(done.status).toBe('success');
+		expect(done.ended_at).not.toBeNull();
+		const pub = toPublic(done);
+		expect(pub.agentId).toBe(agentId);
+		expect(pub.status).toBe('success');
+	});
+
+	it('finishAgentRun persists errors', () => {
+		const run = createAgentRun(db, { agentId, userId: 'u1', trigger: 'schedule' });
+		finishAgentRun(db, run.id, 'failed', 'boom');
+		const done = getAgentRun(db, run.id)!;
+		expect(done.status).toBe('failed');
+		expect(done.error).toBe('boom');
+	});
+
+	it('listAgentRuns orders by started_at DESC and honors limit', async () => {
+		const first = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		await new Promise((r) => setTimeout(r, 5));
+		const second = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		const list = listAgentRuns(db, agentId);
+		expect(list.map((r) => r.id)).toEqual([second.id, first.id]);
+		expect(listAgentRuns(db, agentId, 1).map((r) => r.id)).toEqual([second.id]);
+	});
+
+	it('listRunningAgentIds returns [] for empty input', () => {
+		createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		expect(listRunningAgentIds(db, [])).toEqual([]);
+	});
+
+	it('listRunningAgentIds returns [] when nothing is running', () => {
+		const run = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		finishAgentRun(db, run.id, 'success');
+		expect(listRunningAgentIds(db, [agentId])).toEqual([]);
+	});
+
+	it('listRunningAgentIds returns only agents with a running run', () => {
+		const other = createAgent(db, 'u1', { name: 'b', systemPrompt: 'x', triggerType: 'manual' }).id;
+		createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		const done = createAgentRun(db, { agentId: other, userId: 'u1', trigger: 'manual' });
+		finishAgentRun(db, done.id, 'failed');
+		expect(listRunningAgentIds(db, [agentId, other])).toEqual([agentId]);
+	});
+
+	it('listRunningAgentIds excludes ids outside the input list', () => {
+		const other = createAgent(db, 'u1', { name: 'b', systemPrompt: 'x', triggerType: 'manual' }).id;
+		createAgentRun(db, { agentId: other, userId: 'u1', trigger: 'manual' });
+		expect(listRunningAgentIds(db, [agentId])).toEqual([]);
+	});
+
+	it('listRunningAgentIds dedupes multiple running runs for one agent', () => {
+		createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		createAgentRun(db, { agentId, userId: 'u1', trigger: 'schedule' });
+		expect(listRunningAgentIds(db, [agentId])).toEqual([agentId]);
+	});
+
+	it('failRunningAgentRuns marks only running rows', () => {
+		const running = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		const done = createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
+		finishAgentRun(db, done.id, 'success');
+		expect(failRunningAgentRuns(db)).toBe(1);
+		const row = getAgentRun(db, running.id)!;
+		expect(row.status).toBe('failed');
+		expect(row.error).toBe('Interrupted by server restart');
+		expect(row.ended_at).not.toBeNull();
+		expect(failRunningAgentRuns(db)).toBe(0);
+	});
+});

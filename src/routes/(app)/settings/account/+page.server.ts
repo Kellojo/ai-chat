@@ -1,11 +1,14 @@
 import { requireUser } from '$lib/server/auth/guards.js';
 import { getDb } from '$lib/server/db/index.js';
+import { listApiKeys, toPublic as apiKeyToPublic } from '$lib/server/db/repo/api-keys.js';
 import { getUserSettings } from '$lib/server/db/repo/user-settings.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
 	const user = requireUser(locals);
+	const db = getDb();
 	return {
-		settings: getUserSettings(getDb(), user.id)
+		settings: getUserSettings(db, user.id),
+		apiKeys: listApiKeys(db, user.id).map(apiKeyToPublic)
 	};
 };

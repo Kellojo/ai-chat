@@ -9,6 +9,7 @@
 	} from '$lib/components/ai/prompt-input/index.js';
 	import { PromptSuggestion } from '$lib/components/ai/prompt-suggestion/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import ModelPicker from '$lib/components/app/ModelPicker.svelte';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
@@ -21,6 +22,7 @@
 	let input = $state('');
 	let busy = $state(false);
 	let picked = $state('');
+	let personaId = $state('');
 
 	const defaultModelValue = $derived(
 		data.defaultModel ? `${data.defaultModel.providerId}/${data.defaultModel.modelId}` : ''
@@ -31,6 +33,9 @@
 	const canSend = $derived(input.trim().length > 0 && !busy && !modelMissing);
 	const suggestions = $derived(
 		data.suggestions.length > 0 ? data.suggestions : DEFAULT_SUGGESTIONS
+	);
+	const personaLabel = $derived(
+		personaId === '' ? 'I' : (data.personas.find((p) => p.id === personaId)?.name ?? 'I')
 	);
 
 	async function startChat(text: string) {
@@ -44,6 +49,7 @@
 				body.providerId = providerId;
 				body.modelId = rest.join('/');
 			}
+			if (personaId) body.agentId = personaId;
 			const res = await fetch('/api/conversations', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -62,7 +68,27 @@
 </script>
 
 <div class="flex flex-1 flex-col items-center justify-center gap-8 p-6">
-	<h1 class="text-2xl font-semibold">What can I help you with?</h1>
+	{#if data.personas.length > 0}
+		<h1 class="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-semibold">
+			What can
+			<Select.Root type="single" bind:value={personaId} disabled={busy}>
+				<Select.Trigger
+					class="h-auto! w-auto gap-1 rounded-lg border-none bg-transparent p-0 text-2xl font-semibold underline decoration-muted-foreground/50 underline-offset-8 shadow-none hover:bg-transparent focus-visible:ring-0 [&_svg]:hidden"
+				>
+					{personaLabel}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="">I (default)</Select.Item>
+					{#each data.personas as persona (persona.id)}
+						<Select.Item value={persona.id}>{persona.name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+			help you with?
+		</h1>
+	{:else}
+		<h1 class="text-2xl font-semibold">What can I help you with?</h1>
+	{/if}
 	<div class="w-full max-w-2xl">
 		<PromptInput value={input} onValueChange={(v) => (input = v)} onSubmit={() => startChat(input)}>
 			<PromptInputTextarea placeholder="Ask anything…" />

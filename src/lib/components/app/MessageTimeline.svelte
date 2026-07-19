@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { formatDateTime, formatMessageTime } from '$lib/datetime.js';
+	import { cn } from '$lib/utils.js';
 	import type { TimeFormat } from '$lib/user-settings.js';
 	import { Markdown } from '$lib/components/ai/markdown/index.js';
 	import { Message, MessageActions, MessageContent } from '$lib/components/ai/message/index.js';
@@ -21,7 +22,8 @@
 		timeFormat = 'auto',
 		messageTimes,
 		onregenerate,
-		onedit
+		onedit,
+		class: className
 	}: {
 		messages: UIMessage[];
 		streaming?: boolean;
@@ -29,6 +31,7 @@
 		messageTimes?: ReadonlyMap<string, number>;
 		onregenerate?: (messageId: string) => void;
 		onedit?: (messageId: string, text: string) => void;
+		class?: string;
 	} = $props();
 
 	let mounted = $state(false);
@@ -72,7 +75,7 @@
 	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+<div class={cn('mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6', className)}>
 	{#each messages as message, index (message.id)}
 		<Message class={message.role === 'user' ? 'flex-col items-end' : 'flex-col items-start'}>
 			{#each message.parts as part, partIndex (partIndex)}

@@ -3,11 +3,20 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth } from '$lib/server/auth/index.js';
+import { seedBuiltinAgent } from '$lib/server/agents/builtin.js';
+import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
+import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
 import { seedBuiltinProviders } from '$lib/server/db/seed.js';
 
 if (!building) {
 	seedBuiltinProviders(getDb());
+	seedBuiltinAgent(getDb());
+	const interrupted = failRunningAgentRuns(getDb());
+	if (interrupted > 0) {
+		console.warn(`Marked ${interrupted} interrupted agent run(s) as failed`);
+	}
+	startAgentScheduler(getDb());
 }
 
 const authRoutes: Handle = ({ event, resolve }) =>

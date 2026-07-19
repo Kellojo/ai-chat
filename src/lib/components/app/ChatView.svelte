@@ -22,6 +22,7 @@
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
 	import {
 		chatMessageToUIMessage,
+		type Agent,
 		type ChatMessage,
 		type Conversation,
 		type ModelsByProvider
@@ -33,13 +34,15 @@
 		initialMessages,
 		groups,
 		defaultModel,
-		timeFormat = 'auto'
+		timeFormat = 'auto',
+		personas
 	}: {
 		conversation: Conversation;
 		initialMessages: ChatMessage[];
 		groups: ModelsByProvider[];
 		defaultModel?: { providerId: string; modelId: string } | null;
 		timeFormat?: TimeFormat;
+		personas?: Agent[];
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -168,6 +171,7 @@
 	{conversation}
 	{groups}
 	{defaultModel}
+	{personas}
 	onupdated={(updated) => (conversation = updated)}
 />
 

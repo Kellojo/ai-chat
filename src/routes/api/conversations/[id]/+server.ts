@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { requireUser } from '$lib/server/auth/guards.js';
 import { getDb } from '$lib/server/db/index.js';
+import { getAgent } from '$lib/server/db/repo/agents.js';
 import {
 	getConversation,
 	softDeleteConversation,
@@ -31,14 +32,28 @@ const patchSchema = z.object({
 	memoryEnabled: z.boolean().optional(),
 	maxSteps: z.number().int().min(1).max(100).nullable().optional(),
 	temperature: z.number().min(0).max(2).nullable().optional(),
-	maxTokens: z.number().int().min(1).nullable().optional()
+	maxTokens: z.number().int().min(1).nullable().optional(),
+	agentId: z.string().nullable().optional()
 });
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const user = requireUser(locals);
 	const parsed = patchSchema.safeParse(await request.json().catch(() => null));
 	if (!parsed.success) error(400, { message: parsed.error.issues[0]?.message ?? 'Invalid body' });
-	const conversation = updateConversation(getDb(), user.id, params.id, parsed.data);
+	const db = getDb();
+	const data = parsed.data;
+	if (data.agentId != null) {
+		const agent = getAgent(db, data.agentId);
+		if (!agent || (agent.user_id !== user.id && agent.user_id !== null)) {
+			error(404, { message: 'Agent not found' });
+		}
+		if (data.systemPrompt === undefined) data.systemPrompt = agent.system_prompt;
+		if (agent.provider_id && agent.model_id) {
+			if (data.providerId === undefined) data.providerId = agent.provider_id;
+			if (data.modelId === undefined) data.modelId = agent.model_id;
+		}
+	}
+	const conversation = updateConversation(db, user.id, params.id, data);
 	if (!conversation) error(404, { message: 'Conversation not found' });
 	return json({ conversation: conversationToPublic(conversation) });
 };

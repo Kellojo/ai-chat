@@ -209,6 +209,7 @@ buildTools(ctx: {
 ### 5.3 MCP client manager (`mcp/clientManager.ts`)
 
 - Pool of `experimental_createMCPClient` instances: stdio servers spawned once at boot as child processes (`node dist/mcp/<name>.js`; `tsx` in dev), HTTP/SSE clients per config row.
+- **v1 deviation (approved)**: bundled servers run **in-process** via the MCP SDK's `InMemoryTransport` (ai v7 MCP client moved to `@ai-sdk/mcp` and accepts any MCP transport). Caller context is closure-captured per connection instead of spawn env; connections are per-run, closed at stream end (no pool). Crash isolation from the app is traded for much simpler lifecycle/testing. The `bash` server's tools are pure-Node implementations (no `execFile`) so they work cross-platform. Revisit stdio if third-party bundled servers appear.
 - Health check + `testConnection(serverId)` for the settings UI; reconnect with backoff on stdio crash.
 - Bundled servers are plain MCP SDK servers (`@modelcontextprotocol/sdk`) in `mcp/servers/*`, each <150 LOC:
 

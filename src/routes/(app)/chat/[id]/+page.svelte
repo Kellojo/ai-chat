@@ -12,5 +12,6 @@
 		groups={data.groups}
 		defaultModel={data.defaultModel}
 		timeFormat={data.timeFormat}
+		personas={data.personas}
 	/>
 {/key}

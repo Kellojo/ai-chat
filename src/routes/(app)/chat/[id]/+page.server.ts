@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db/index.js';
+import { listPersonaAgents, toPublic as agentToPublic } from '$lib/server/db/repo/agents.js';
 import { findModel, findRoleModel, listEnabledModels } from '$lib/server/db/repo/models.js';
 import {
 	getConversation,
@@ -33,6 +34,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		messages: listMessages(db, conversation.id).map(messageToPublic),
 		groups: listModelsGrouped(),
 		defaultModel,
-		timeFormat: getTimeFormat(db, user.id)
+		timeFormat: getTimeFormat(db, user.id),
+		personas: listPersonaAgents(db, user.id).map(agentToPublic)
 	};
 };

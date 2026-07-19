@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db/index.js';
+import { listPersonaAgents, toPublic } from '$lib/server/db/repo/agents.js';
 import { findModel, findRoleModel, listEnabledModels } from '$lib/server/db/repo/models.js';
 import { getUserSettings } from '$lib/server/db/repo/user-settings.js';
 import { listModelsGrouped } from '$lib/server/llm/registry.js';
@@ -23,6 +24,7 @@ export const load: PageServerLoad = ({ locals }) => {
 	return {
 		groups: listModelsGrouped(),
 		defaultModel,
-		suggestions: getUserSettings(db, user.id).suggestions
+		suggestions: getUserSettings(db, user.id).suggestions,
+		personas: listPersonaAgents(db, user.id).map(toPublic)
 	};
 };

@@ -1,12 +1,18 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { setMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 	import XIcon from '@lucide/svelte/icons/x';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
+	import { formatDateTime } from '$lib/datetime.js';
+	import type { ApiKey } from '$lib/types.js';
 	import {
 		MAX_GLOBAL_INSTRUCTIONS_LENGTH,
 		MAX_SUGGESTIONS,
@@ -44,6 +50,79 @@
 	let instructions = $state(data.settings.globalInstructions);
 	let savedInstructions = $state(data.settings.globalInstructions);
 	let instructionsBusy = $state(false);
+
+	let keyDialogOpen = $state(false);
+	let keyLabel = $state('');
+	let keyBusy = $state(false);
+	let createdKey = $state<string | null>(null);
+	let deleteKeyBusy = $state<string | null>(null);
+
+	function openKeyDialog() {
+		keyLabel = '';
+		createdKey = null;
+		keyDialogOpen = true;
+	}
+
+	function closeKeyDialog(open: boolean) {
+		keyDialogOpen = open;
+		if (!open && createdKey) {
+			createdKey = null;
+			invalidateAll();
+		}
+	}
+
+	async function createKey(event: SubmitEvent) {
+		event.preventDefault();
+		if (keyBusy) return;
+		keyBusy = true;
+		try {
+			const res = await fetch('/api/api-keys', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ label: keyLabel.trim() })
+			});
+			const payload = (await res.json().catch(() => null)) as {
+				key?: ApiKey & { rawKey: string };
+				message?: string;
+			} | null;
+			if (!res.ok || !payload?.key) {
+				throw new Error(payload?.message ?? `Request failed (${res.status})`);
+			}
+			createdKey = payload.key.rawKey;
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to create API key');
+		} finally {
+			keyBusy = false;
+		}
+	}
+
+	async function copyKey() {
+		if (!createdKey) return;
+		try {
+			await navigator.clipboard.writeText(createdKey);
+			toast.success('Copied');
+		} catch {
+			toast.error('Failed to copy');
+		}
+	}
+
+	async function deleteKey(id: string) {
+		if (deleteKeyBusy) return;
+		deleteKeyBusy = id;
+		try {
+			const res = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
+			if (!res.ok) {
+				const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payload?.message ?? `Request failed (${res.status})`);
+			}
+			toast.success('API key deleted');
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to delete API key');
+		} finally {
+			deleteKeyBusy = null;
+		}
+	}
 
 	async function putSettings(body: {
 		theme?: Theme;
@@ -287,15 +366,100 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root>
+	<Card.Root id="api-keys">
 		<Card.Header>
 			<Card.Title>API keys</Card.Title>
 			<Card.Description>
-				API keys for programmatic access will be manageable here in a future update.
+				Used to trigger agents over HTTP. Treat keys like passwords.
 			</Card.Description>
 		</Card.Header>
-		<Card.Content>
-			<Button disabled>Create API key</Button>
+		<Card.Content class="flex flex-col gap-3">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Label</Table.Head>
+						<Table.Head>Created</Table.Head>
+						<Table.Head>Last used</Table.Head>
+						<Table.Head class="text-right">Actions</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each data.apiKeys as key (key.id)}
+						<Table.Row>
+							<Table.Cell class="max-w-48 truncate font-medium" title={key.label}>
+								{key.label}
+							</Table.Cell>
+							<Table.Cell class="whitespace-nowrap text-muted-foreground">
+								{formatDateTime(key.createdAt, data.settings.timeFormat)}
+							</Table.Cell>
+							<Table.Cell class="whitespace-nowrap text-muted-foreground">
+								{key.lastUsedAt
+									? formatDateTime(key.lastUsedAt, data.settings.timeFormat)
+									: 'never'}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<Button
+									variant="destructive"
+									size="sm"
+									disabled={deleteKeyBusy !== null}
+									onclick={() => deleteKey(key.id)}
+								>
+									{deleteKeyBusy === key.id ? 'Deleting…' : 'Delete'}
+								</Button>
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={4} class="text-center text-muted-foreground">
+								No API keys yet.
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			<div>
+				<Button onclick={openKeyDialog}>Create API key</Button>
+			</div>
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<Dialog.Root open={keyDialogOpen} onOpenChange={closeKeyDialog}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Create API key</Dialog.Title>
+		</Dialog.Header>
+		{#if createdKey}
+			<div class="flex flex-col gap-3">
+				<p class="text-sm text-muted-foreground">Shown once — store it now.</p>
+				<div class="flex items-center gap-2">
+					<Input value={createdKey} readonly class="font-mono text-xs" />
+					<Button variant="outline" size="sm" onclick={copyKey} aria-label="Copy API key">
+						<CopyIcon class="size-4" />
+					</Button>
+				</div>
+				<Dialog.Footer>
+					<Button onclick={() => closeKeyDialog(false)}>Done</Button>
+				</Dialog.Footer>
+			</div>
+		{:else}
+			<form onsubmit={createKey} class="flex flex-col gap-4">
+				<div class="flex flex-col gap-2">
+					<Label for="api-key-label">Label</Label>
+					<Input
+						id="api-key-label"
+						bind:value={keyLabel}
+						maxlength={100}
+						required
+						placeholder="e.g. Nightly automation"
+					/>
+				</div>
+				<Dialog.Footer>
+					<Button type="submit" disabled={keyBusy || !keyLabel.trim()}>
+						{keyBusy ? 'Creating…' : 'Create key'}
+					</Button>
+				</Dialog.Footer>
+			</form>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>

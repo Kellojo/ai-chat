@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
+	import BotIcon from '@lucide/svelte/icons/bot';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PinOffIcon from '@lucide/svelte/icons/pin-off';
@@ -29,6 +31,29 @@
 	let renameTarget = $state<Conversation | null>(null);
 	let renameText = $state('');
 	let deleteTarget = $state<Conversation | null>(null);
+	let agentStats = $state<{ running: number; total: number } | null>(null);
+
+	function refreshAgentStats() {
+		fetch('/api/agents/stats')
+			.then((r) => (r.ok ? r.json() : null))
+			.then((d) => {
+				if (d) agentStats = d;
+			})
+			.catch(() => {});
+	}
+
+	onMount(() => {
+		refreshAgentStats();
+		const refreshIfVisible = () => {
+			if (document.visibilityState === 'visible') refreshAgentStats();
+		};
+		const interval = setInterval(refreshIfVisible, 5000);
+		document.addEventListener('visibilitychange', refreshIfVisible);
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', refreshIfVisible);
+		};
+	});
 
 	const currentId = $derived(page.params.id ?? '');
 
@@ -137,6 +162,31 @@
 			oninput={search}
 			class="h-8 text-sm"
 		/>
+	</div>
+
+	<div class="px-2 pb-1">
+		<a
+			href={resolve('/agents')}
+			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+				'/agents'
+			)
+				? 'bg-accent text-accent-foreground'
+				: 'text-muted-foreground hover:bg-accent/50'}"
+		>
+			<BotIcon class="size-4" />
+			Agents
+			{#if agentStats}
+				<span
+					class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+					title="{agentStats.running} running of {agentStats.total} agents"
+				>
+					{#if agentStats.running > 0}
+						<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
+					{/if}
+					{agentStats.running}/{agentStats.total}
+				</span>
+			{/if}
+		</a>
 	</div>
 
 	<nav class="flex-1 overflow-y-auto px-2 pb-2">

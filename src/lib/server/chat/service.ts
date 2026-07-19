@@ -18,6 +18,7 @@ import {
 	updateMessage
 } from '../db/repo/messages.js';
 import { getAttachment, linkAttachmentsToMessage } from '../db/repo/attachments.js';
+import { getAgent } from '../db/repo/agents.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
@@ -120,6 +121,7 @@ export async function handleChatRequest(
 	if (conversation.kind !== 'chat') throw new ChatRequestError(400, 'Not a chat conversation');
 
 	conversation = ensureModel(db, userId, conversation);
+	const agent = conversation.agent_id ? getAgent(db, conversation.agent_id) : undefined;
 	const lastUserMessage = syncMessages(db, conversation.id, body.messages);
 	if (conversation.title === '') {
 		const raw = extractText(lastUserMessage.parts).trim().replace(/\s+/g, ' ');
@@ -147,7 +149,10 @@ export async function handleChatRequest(
 		userId,
 		mode: conversation.mode === 'agent' ? 'agent' : 'chat',
 		memoryEnabled: conversation.memory_enabled === 1,
-		workspaceDir: conversationWorkspace(conversation.id)
+		workspaceDir: conversationWorkspace(conversation.id),
+		agentAllowlist: agent?.tool_allowlist
+			? (JSON.parse(agent.tool_allowlist) as string[])
+			: undefined
 	});
 
 	const controller = new AbortController();

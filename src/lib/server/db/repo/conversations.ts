@@ -15,6 +15,7 @@ export interface ConversationRow {
 	temperature: number | null;
 	max_tokens: number | null;
 	pinned: number;
+	agent_id: string | null;
 	created_at: number;
 	updated_at: number;
 	deleted_at: number | null;
@@ -33,6 +34,7 @@ export interface Conversation {
 	temperature: number | null;
 	maxTokens: number | null;
 	pinned: boolean;
+	agentId: string | null;
 	createdAt: number;
 	updatedAt: number;
 }
@@ -51,6 +53,7 @@ export function toPublic(row: ConversationRow): Conversation {
 		temperature: row.temperature,
 		maxTokens: row.max_tokens,
 		pinned: row.pinned === 1,
+		agentId: row.agent_id,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at
 	};
@@ -78,6 +81,7 @@ export interface CreateConversationInput {
 	mode?: 'chat' | 'agent';
 	kind?: 'chat' | 'agent-run' | 'research';
 	title?: string;
+	agentId?: string | null;
 }
 
 export function createConversation(
@@ -88,8 +92,8 @@ export function createConversation(
 	const id = randomUUID();
 	const now = Date.now();
 	db.prepare(
-		`INSERT INTO conversations (id, user_id, kind, title, mode, provider_id, model_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		`INSERT INTO conversations (id, user_id, kind, title, mode, provider_id, model_id, agent_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	).run(
 		id,
 		userId,
@@ -98,6 +102,7 @@ export function createConversation(
 		input.mode ?? 'chat',
 		input.providerId ?? null,
 		input.modelId ?? null,
+		input.agentId ?? null,
 		now,
 		now
 	);
@@ -114,6 +119,7 @@ export interface UpdateConversationInput {
 	maxSteps?: number | null;
 	temperature?: number | null;
 	maxTokens?: number | null;
+	agentId?: string | null;
 }
 
 export function updateConversation(
@@ -126,7 +132,7 @@ export function updateConversation(
 	if (!existing) return undefined;
 	db.prepare(
 		`UPDATE conversations SET title = ?, mode = ?, provider_id = ?, model_id = ?,
-		 system_prompt = ?, memory_enabled = ?, max_steps = ?, temperature = ?, max_tokens = ?
+		 system_prompt = ?, memory_enabled = ?, max_steps = ?, temperature = ?, max_tokens = ?, agent_id = ?
 		 WHERE id = ?`
 	).run(
 		patch.title ?? existing.title,
@@ -138,6 +144,7 @@ export function updateConversation(
 		patch.maxSteps !== undefined ? patch.maxSteps : existing.max_steps,
 		patch.temperature !== undefined ? patch.temperature : existing.temperature,
 		patch.maxTokens !== undefined ? patch.maxTokens : existing.max_tokens,
+		patch.agentId !== undefined ? patch.agentId : existing.agent_id,
 		id
 	);
 	return getConversation(db, userId, id);

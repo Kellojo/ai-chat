@@ -6,19 +6,22 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import SettingsIcon from '@lucide/svelte/icons/settings-2';
 	import ModelPicker from './ModelPicker.svelte';
-	import type { Conversation, ModelsByProvider } from '$lib/types.js';
+	import type { Agent, Conversation, ModelsByProvider } from '$lib/types.js';
 
 	let {
 		conversation,
 		groups,
 		defaultModel,
+		personas,
 		onupdated
 	}: {
 		conversation: Conversation;
 		groups: ModelsByProvider[];
 		defaultModel?: { providerId: string; modelId: string } | null;
+		personas?: Agent[];
 		onupdated: (c: Conversation) => void;
 	} = $props();
 
@@ -59,10 +62,35 @@
 		const [providerId, ...rest] = value.split('/');
 		patch({ providerId, modelId: rest.join('/') });
 	}
+
+	const personaLabel = $derived(
+		conversation.agentId
+			? (personas?.find((p) => p.id === conversation.agentId)?.name ?? 'Persona')
+			: 'No persona'
+	);
 </script>
 
 <header class="flex items-center gap-3 border-b px-4 py-2">
 	<ModelPicker {groups} value={currentModelValue} onselect={selectModel} disabled={saving} />
+
+	{#if personas}
+		<Select.Root
+			type="single"
+			value={conversation.agentId ?? ''}
+			disabled={saving}
+			onValueChange={(value) => patch({ agentId: value === '' ? null : value })}
+		>
+			<Select.Trigger class="w-48" title={personaLabel}>
+				<span class="min-w-0 flex-1 truncate text-left">{personaLabel}</span>
+			</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="">No persona</Select.Item>
+				{#each personas as persona (persona.id)}
+					<Select.Item value={persona.id}>{persona.name}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	{/if}
 
 	<div class="ml-auto flex items-center gap-3">
 		<Label class="flex items-center gap-2 text-sm text-muted-foreground">
