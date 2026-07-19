@@ -1,0 +1,88 @@
+import http from 'node:http';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+vi.resetModules();
+process.env.DATABASE_PATH = ':memory:';
+process.env.APP_SECRET = 'test-secret-test-secret';
+
+const { createWebfetchServer } = await import('./webfetch.js');
+const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+const { createMCPClient } = await import('@ai-sdk/mcp');
+
+const PAGE =
+	'<html><head><style>body{color:red}</style><script>var x=1;</script></head>' +
+	'<body><p>Hello <b>World</b></p><br><p>Second para</p></body></html>';
+
+let httpServer: http.Server;
+let base: string;
+
+beforeAll(async () => {
+	httpServer = http.createServer((req, res) => {
+		if (req.url?.startsWith('/status/500')) {
+			res.writeHead(500).end('oops');
+			return;
+		}
+		if (req.url === '/plain') {
+			res.writeHead(200, { 'content-type': 'text/plain' }).end('plain <b>text</b>');
+			return;
+		}
+		res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(PAGE);
+	});
+	await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
+	const addr = httpServer.address();
+	base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+});
+
+afterAll(async () => {
+	await new Promise((resolve) => httpServer.close(resolve));
+});
+
+async function callFetch(args: Record<string, unknown>) {
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createWebfetchServer();
+	await server.connect(serverTransport);
+	const client = await createMCPClient({ transport: clientTransport, maxRetries: 0 });
+	try {
+		const tools = await client.tools();
+		const tool = tools.fetch as unknown as {
+			execute: (input: unknown, opts: unknown) => Promise<unknown>;
+		};
+		return await tool.execute(args, { toolCallId: 't1', messages: [] });
+	} finally {
+		await client.close();
+		await server.close();
+	}
+}
+
+function resultText(res: unknown): string {
+	const r = res as { content?: Array<{ type: string; text?: string }> };
+	return r.content?.[0]?.text ?? '';
+}
+
+describe('webfetch server', () => {
+	it('converts HTML to markdown-ish text', async () => {
+		const res = await callFetch({ url: `${base}/` });
+		const out = resultText(res);
+		expect(out).toContain('Hello World');
+		expect(out).toContain('Second para');
+		expect(out).not.toContain('<p>');
+		expect(out).not.toContain('var x=1');
+		expect(out).not.toContain('color:red');
+	});
+
+	it('returns raw HTML with format=html', async () => {
+		const res = await callFetch({ url: `${base}/`, format: 'html' });
+		expect(resultText(res)).toContain('<p>Hello <b>World</b></p>');
+	});
+
+	it('returns non-HTML content as-is', async () => {
+		const res = await callFetch({ url: `${base}/plain`, format: 'text' });
+		expect(resultText(res)).toContain('plain <b>text</b>');
+	});
+
+	it('reports non-2xx status as error', async () => {
+		const res = await callFetch({ url: `${base}/status/500` });
+		expect((res as { isError?: boolean }).isError).toBe(true);
+		expect(resultText(res)).toContain('500');
+	});
+});

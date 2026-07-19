@@ -29,6 +29,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/better-sqlite3": "^7.6.13",
+		"@types/luxon": "^3.7.2",
 		"@types/node": "^22",
 		"@vitest/browser-playwright": "^4.1.8",
 		"bits-ui": "^2.18.1",
@@ -57,6 +58,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "^4.0.16",
+		"@ai-sdk/mcp": "^2.0.15",
 		"@ai-sdk/openai-compatible": "^3.0.12",
 		"@ai-sdk/svelte": "^5.0.31",
 		"@modelcontextprotocol/sdk": "^1.29.0",
@@ -64,6 +66,7 @@
 		"ai": "^7.0.31",
 		"better-auth": "^1.6.23",
 		"better-sqlite3": "^12.11.1",
+		"luxon": "^3.7.2",
 		"mode-watcher": "^1.1.0",
 		"runed": "^0.37.1",
 		"stick-to-bottom-svelte": "^1.0.4",

@@ -11,5 +11,6 @@
 		initialMessages={data.messages}
 		groups={data.groups}
 		defaultModel={data.defaultModel}
+		timeFormat={data.timeFormat}
 	/>
 {/key}

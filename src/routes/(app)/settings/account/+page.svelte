@@ -7,12 +7,14 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import {
-		MAX_GLOBAL_INSTRUCTIONS_LENGTH,
-		MAX_SUGGESTIONS,
-		THEMES,
-		type Theme
-	} from '$lib/user-settings.js';
+import {
+	MAX_GLOBAL_INSTRUCTIONS_LENGTH,
+	MAX_SUGGESTIONS,
+	THEMES,
+	TIME_FORMATS,
+	type Theme,
+	type TimeFormat
+} from '$lib/user-settings.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import type { PageData } from './$types';
 
@@ -24,8 +26,17 @@
 		system: 'System'
 	};
 
+	const timeFormatLabels: Record<TimeFormat, string> = {
+		auto: 'Automatic',
+		'12h': '12-hour',
+		'24h': '24-hour'
+	};
+
 	let theme = $state<Theme>(data.settings.theme);
 	let themeBusy = $state(false);
+
+	let timeFormat = $state<TimeFormat>(data.settings.timeFormat);
+	let timeFormatBusy = $state(false);
 
 	let rows = $state(data.settings.suggestions.map((text) => ({ id: crypto.randomUUID(), text })));
 	let suggestionsBusy = $state(false);
@@ -38,6 +49,7 @@
 		theme?: Theme;
 		suggestions?: string[];
 		globalInstructions?: string;
+		timeFormat?: TimeFormat;
 	}) {
 		const res = await fetch('/api/user/settings', {
 			method: 'PUT',
@@ -64,6 +76,21 @@
 			toast.error(e instanceof Error ? e.message : 'Failed to update theme');
 		} finally {
 			themeBusy = false;
+		}
+	}
+
+	async function changeTimeFormat(value: TimeFormat) {
+		if (timeFormatBusy || value === timeFormat) return;
+		const previous = timeFormat;
+		timeFormat = value;
+		timeFormatBusy = true;
+		try {
+			await putSettings({ timeFormat: value });
+		} catch (e) {
+			timeFormat = previous;
+			toast.error(e instanceof Error ? e.message : 'Failed to update time format');
+		} finally {
+			timeFormatBusy = false;
 		}
 	}
 
@@ -132,7 +159,7 @@
 			<Card.Title>Appearance</Card.Title>
 			<Card.Description>Choose how the app looks.</Card.Description>
 		</Card.Header>
-		<Card.Content>
+		<Card.Content class="flex flex-col gap-4">
 			<div class="flex items-center justify-between gap-6">
 				<div class="flex min-w-0 flex-col gap-1">
 					<Label>Theme</Label>
@@ -149,6 +176,28 @@
 					<Select.Content>
 						{#each THEMES as option (option)}
 							<Select.Item value={option}>{themeLabels[option]}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="flex items-center justify-between gap-6">
+				<div class="flex min-w-0 flex-col gap-1">
+					<Label>Time format</Label>
+					<p class="text-sm text-muted-foreground">
+						How times are shown. Automatic follows your browser locale.
+					</p>
+				</div>
+				<Select.Root
+					type="single"
+					value={timeFormat}
+					onValueChange={(value) => changeTimeFormat(value as TimeFormat)}
+				>
+					<Select.Trigger class="w-48 shrink-0" disabled={timeFormatBusy}>
+						{timeFormatLabels[timeFormat]}
+					</Select.Trigger>
+					<Select.Content>
+						{#each TIME_FORMATS as option (option)}
+							<Select.Item value={option}>{timeFormatLabels[option]}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>

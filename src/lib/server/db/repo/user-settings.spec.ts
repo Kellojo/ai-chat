@@ -25,9 +25,11 @@ describe('user-settings repo', () => {
 		expect(repo.getUserSettings(db, 'u1')).toEqual({
 			theme: 'system',
 			suggestions: repo.getSuggestions(db, 'u1'),
-			globalInstructions: ''
+			globalInstructions: '',
+			timeFormat: 'auto'
 		});
 		expect(repo.getTheme(db, 'u1')).toBe('system');
+		expect(repo.getTimeFormat(db, 'u1')).toBe('auto');
 		expect(repo.getSuggestions(db, 'u1').length).toBeGreaterThan(0);
 	});
 
@@ -45,6 +47,13 @@ describe('user-settings repo', () => {
 		expect(repo.getGlobalInstructions(db, 'u1')).toBe('no emojis');
 		seedUser(db, 'u2');
 		expect(repo.getGlobalInstructions(db, 'u2')).toBe('');
+	});
+
+	it('round-trips time format per user', () => {
+		repo.setUserSetting(db, 'u1', 'timeFormat', '24h');
+		expect(repo.getTimeFormat(db, 'u1')).toBe('24h');
+		seedUser(db, 'u2');
+		expect(repo.getTimeFormat(db, 'u2')).toBe('auto');
 	});
 
 	it('clears stored value via deleteUserSetting', () => {
@@ -76,9 +85,15 @@ describe('user-settings repo', () => {
 			'globalInstructions',
 			JSON.stringify(42)
 		);
+		db.prepare('INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(
+			'u1',
+			'timeFormat',
+			JSON.stringify('13h')
+		);
 		expect(repo.getTheme(db, 'u1')).toBe('system');
 		expect(repo.getSuggestions(db, 'u1').length).toBeGreaterThan(0);
 		expect(repo.getGlobalInstructions(db, 'u1')).toBe('');
+		expect(repo.getTimeFormat(db, 'u1')).toBe('auto');
 	});
 
 	it('cascades on user delete', () => {

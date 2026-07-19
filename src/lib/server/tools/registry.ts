@@ -1,0 +1,76 @@
+import path from 'node:path';
+import type { Tool } from 'ai';
+import { config } from '../config.js';
+import { getDb } from '../db/index.js';
+import { listEnabledMcpServers, type McpMode } from '../db/repo/mcp-servers.js';
+import { connectServer } from '../mcp/clientManager.js';
+import type { CallerContext } from '../mcp/types.js';
+import { wrapMcpTools } from './wrap.js';
+
+export interface BuildToolsInput {
+	userId: string;
+	mode: McpMode;
+	memoryEnabled: boolean;
+	workspaceDir?: string | null;
+	agentAllowlist?: string[];
+}
+
+export interface BuiltTools {
+	tools: Record<string, Tool>;
+	toolToServer: Record<string, string>;
+	close: () => Promise<void>;
+}
+
+export async function buildTools(input: BuildToolsInput): Promise<BuiltTools> {
+	const db = getDb();
+	const user = db.prepare('SELECT role FROM "user" WHERE id = ?').get(input.userId) as
+		{ role: string } | undefined;
+	const ctx: CallerContext = {
+		userId: input.userId,
+		role: user?.role ?? 'user',
+		workspaceDir: input.workspaceDir ?? null,
+		documentsDir: path.resolve(config.DOCUMENTS_VOLUME)
+	};
+	const rows = listEnabledMcpServers(db, input.mode).filter(
+		(row) => input.memoryEnabled || row.name !== 'memory'
+	);
+	const tools: Record<string, Tool> = {};
+	const toolToServer: Record<string, string> = {};
+	const closers: Array<() => Promise<void>> = [];
+	for (const row of rows) {
+		try {
+			const conn = await connectServer(row, ctx);
+			closers.push(conn.close);
+			const set = wrapMcpTools(
+				(await conn.client.tools()) as unknown as Record<string, Tool>,
+				row.name
+			);
+			for (const [name, tool] of Object.entries(set)) {
+				if (tools[name]) {
+					console.warn(`MCP tool name collision: "${name}" from ${row.name} skipped`);
+					continue;
+				}
+				tools[name] = tool;
+				toolToServer[name] = row.name;
+			}
+		} catch (e) {
+			console.warn(`MCP server ${row.name} unavailable:`, e instanceof Error ? e.message : e);
+		}
+	}
+	let filtered = tools;
+	if (input.agentAllowlist) {
+		filtered = {};
+		for (const name of input.agentAllowlist) {
+			if (tools[name]) filtered[name] = tools[name];
+		}
+	}
+	return {
+		tools: filtered,
+		toolToServer,
+		close: async () => {
+			for (const closer of closers.reverse()) {
+				await closer().catch(() => undefined);
+			}
+		}
+	};
+}

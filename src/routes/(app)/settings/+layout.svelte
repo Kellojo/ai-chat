@@ -9,6 +9,7 @@
 		{ href: '/settings/account', label: 'Account', adminOnly: false },
 		{ href: '/settings/providers', label: 'Providers', adminOnly: true },
 		{ href: '/settings/models', label: 'Models', adminOnly: true },
+		{ href: '/settings/mcp', label: 'MCP', adminOnly: true },
 		{ href: '/settings/defaults', label: 'Defaults', adminOnly: true }
 	] as const;
 

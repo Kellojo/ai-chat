@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { formatDateTime, formatMessageTime } from '$lib/datetime.js';
+	import type { TimeFormat } from '$lib/user-settings.js';
 	import { Markdown } from '$lib/components/ai/markdown/index.js';
 	import { Message, MessageActions, MessageContent } from '$lib/components/ai/message/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { ToolCallCard } from '$lib/components/ai/tool-call-card/index.js';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
@@ -15,14 +18,23 @@
 	let {
 		messages,
 		streaming = false,
+		timeFormat = 'auto',
+		messageTimes,
 		onregenerate,
 		onedit
 	}: {
 		messages: UIMessage[];
 		streaming?: boolean;
+		timeFormat?: TimeFormat;
+		messageTimes?: ReadonlyMap<string, number>;
 		onregenerate?: (messageId: string) => void;
 		onedit?: (messageId: string, text: string) => void;
 	} = $props();
+
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
 
 	type Part = UIMessage['parts'][number];
 
@@ -118,15 +130,22 @@
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
 				{:else if part.type.startsWith('tool-') || part.type === 'dynamic-tool'}
-					<Badge variant="outline" class="font-mono text-xs">
-						{part.type === 'dynamic-tool'
-							? (part as { toolName?: string }).toolName
-							: part.type.slice(5)}
-					</Badge>
+					<ToolCallCard part={part as never} />
 				{/if}
 			{/each}
 
 			<MessageActions class={message.role === 'user' ? 'justify-end' : ''}>
+				{#if mounted}
+					{@const ts = messageTimes?.get(message.id)}
+					{#if ts}
+						<span
+							class="text-xs text-muted-foreground tabular-nums"
+							title={formatDateTime(ts, timeFormat)}
+						>
+							{formatMessageTime(ts, timeFormat)}
+						</span>
+					{/if}
+				{/if}
 				<button
 					title="Copy"
 					aria-label="Copy message"

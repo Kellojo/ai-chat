@@ -6,6 +6,7 @@ import {
 	toPublic as conversationToPublic
 } from '$lib/server/db/repo/conversations.js';
 import { listMessages, toPublic as messageToPublic } from '$lib/server/db/repo/messages.js';
+import { getTimeFormat } from '$lib/server/db/repo/user-settings.js';
 import { listModelsGrouped } from '$lib/server/llm/registry.js';
 import type { PageServerLoad } from './$types';
 
@@ -31,6 +32,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		conversation: conversationToPublic(conversation),
 		messages: listMessages(db, conversation.id).map(messageToPublic),
 		groups: listModelsGrouped(),
-		defaultModel
+		defaultModel,
+		timeFormat: getTimeFormat(db, user.id)
 	};
 };

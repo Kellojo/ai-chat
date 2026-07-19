@@ -3,6 +3,7 @@
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
 	import { untrack } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { ChatContainer, ChatContainerContent } from '$lib/components/ai/chat-container/index.js';
 	import {
@@ -25,17 +26,20 @@
 		type Conversation,
 		type ModelsByProvider
 	} from '$lib/types.js';
+	import type { TimeFormat } from '$lib/user-settings.js';
 
 	let {
 		conversation: initialConversation,
 		initialMessages,
 		groups,
-		defaultModel
+		defaultModel,
+		timeFormat = 'auto'
 	}: {
 		conversation: Conversation;
 		initialMessages: ChatMessage[];
 		groups: ModelsByProvider[];
 		defaultModel?: { providerId: string; modelId: string } | null;
+		timeFormat?: TimeFormat;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -60,6 +64,10 @@
 
 	let prevStatus = $state<string>(chat.status);
 
+	const messageTimes = new SvelteMap<string, number>(
+		initialMessages.map((m) => [m.id, m.createdAt])
+	);
+
 	const streaming = $derived(chat.status === 'streaming' || chat.status === 'submitted');
 	const waiting = $derived(chat.status === 'submitted');
 	const canSend = $derived((input.trim().length > 0 || selectedFiles.length > 0) && !streaming);
@@ -67,6 +75,12 @@
 	$effect(() => {
 		const pending = pendingMessage.consume();
 		if (pending) send(pending);
+	});
+
+	$effect(() => {
+		for (const m of chat.messages) {
+			if (!messageTimes.has(m.id)) messageTimes.set(m.id, Date.now());
+		}
 	});
 
 	$effect(() => {
@@ -161,6 +175,8 @@
 		<MessageTimeline
 			messages={chat.messages}
 			{streaming}
+			{timeFormat}
+			{messageTimes}
 			onregenerate={regenerate}
 			onedit={startEdit}
 		/>

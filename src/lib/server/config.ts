@@ -25,6 +25,7 @@ const schema = z.object({
 	LM_STUDIO_BASE_URL: z.string().default('http://localhost:1234'),
 	AGENT_MAX_STEPS: z.coerce.number().int().min(1).default(25),
 	MAX_ATTACHMENT_SIZE_MB: z.coerce.number().int().min(1).default(50),
+	SETTINGS_MCP_WRITE: boolFromString('false'),
 	PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 	ORIGIN: z.string().url().optional(),
 	APP_SECRET: z.string().min(16).optional()

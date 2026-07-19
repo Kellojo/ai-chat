@@ -22,7 +22,8 @@ import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
-import { resolveAttachment } from '../workspaces.js';
+import { buildTools } from '../tools/registry.js';
+import { conversationWorkspace, resolveAttachment } from '../workspaces.js';
 import { registerStream, releaseStream } from './streams.js';
 import { generateConversationTitle } from './title.js';
 
@@ -142,26 +143,41 @@ export async function handleChatRequest(
 		throw e;
 	}
 
+	const { tools, close } = await buildTools({
+		userId,
+		mode: conversation.mode === 'agent' ? 'agent' : 'chat',
+		memoryEnabled: conversation.memory_enabled === 1,
+		workspaceDir: conversationWorkspace(conversation.id)
+	});
+
 	const controller = new AbortController();
 	registerStream(conversation.id, controller);
 
 	let errorText: string | null = null;
-	const result = streamText({
-		model,
-		system: buildSystemPrompt(conversation, getGlobalInstructions(db, userId)),
-		messages: await convertToModelMessages(
-			inlineAttachmentParts(db, conversation.id, body.messages)
-		),
-		stopWhen: stepCountIs(
-			conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
-		),
-		abortSignal: controller.signal,
-		...(conversation.temperature != null ? { temperature: conversation.temperature } : {}),
-		...(conversation.max_tokens != null ? { maxOutputTokens: conversation.max_tokens } : {}),
-		onError: ({ error }) => {
-			errorText = error instanceof Error ? error.message : String(error);
-		}
-	});
+	let result: ReturnType<typeof streamText>;
+	try {
+		result = streamText({
+			model,
+			system: buildSystemPrompt(conversation, getGlobalInstructions(db, userId)),
+			tools,
+			messages: await convertToModelMessages(
+				inlineAttachmentParts(db, conversation.id, body.messages)
+			),
+			stopWhen: stepCountIs(
+				conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
+			),
+			abortSignal: controller.signal,
+			...(conversation.temperature != null ? { temperature: conversation.temperature } : {}),
+			...(conversation.max_tokens != null ? { maxOutputTokens: conversation.max_tokens } : {}),
+			onError: ({ error }) => {
+				errorText = error instanceof Error ? error.message : String(error);
+			}
+		});
+	} catch (e) {
+		releaseStream(conversation.id, controller);
+		await close();
+		throw e;
+	}
 
 	return result.toUIMessageStreamResponse({
 		onError: () => errorText ?? 'An error occurred while generating the response',
@@ -191,6 +207,7 @@ export async function handleChatRequest(
 				console.error('Failed to persist assistant message', e);
 			} finally {
 				releaseStream(conversation.id, controller);
+				await close();
 			}
 		}
 	});

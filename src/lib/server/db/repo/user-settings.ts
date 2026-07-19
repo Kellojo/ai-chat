@@ -2,7 +2,9 @@ import type { Db } from '../index.js';
 import {
 	DEFAULT_USER_SETTINGS,
 	THEMES,
+	TIME_FORMATS,
 	type Theme,
+	type TimeFormat,
 	type UserSettings
 } from '$lib/user-settings.js';
 
@@ -47,10 +49,18 @@ export function getGlobalInstructions(db: Db, userId: string): string {
 	return value.trim();
 }
 
+export function getTimeFormat(db: Db, userId: string): TimeFormat {
+	const value = getUserSetting<string>(db, userId, 'timeFormat');
+	return TIME_FORMATS.includes(value as TimeFormat)
+		? (value as TimeFormat)
+		: DEFAULT_USER_SETTINGS.timeFormat;
+}
+
 export function getUserSettings(db: Db, userId: string): UserSettings {
 	return {
 		theme: getTheme(db, userId),
 		suggestions: getSuggestions(db, userId),
-		globalInstructions: getGlobalInstructions(db, userId)
+		globalInstructions: getGlobalInstructions(db, userId),
+		timeFormat: getTimeFormat(db, userId)
 	};
 }

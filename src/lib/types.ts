@@ -30,6 +30,17 @@ export interface ModelsByProvider {
 	models: ChatModel[];
 }
 
+export interface McpServerInfo {
+	id: string;
+	name: string;
+	transport: 'builtin' | 'stdio' | 'http' | 'sse';
+	url: string | null;
+	hasToken: boolean;
+	enabled: boolean;
+	scopes: ('chat' | 'agent')[];
+	builtin: boolean;
+}
+
 export interface Conversation {
 	id: string;
 	kind: 'chat' | 'agent-run' | 'research';
