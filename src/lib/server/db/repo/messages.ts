@@ -50,6 +50,13 @@ export function listMessages(db: Db, conversationId: string): MessageRow[] {
 		.all(conversationId) as MessageRow[];
 }
 
+export function countMessages(db: Db, conversationId: string): number {
+	const row = db
+		.prepare('SELECT COUNT(*) AS count FROM messages WHERE conversation_id = ?')
+		.get(conversationId) as { count: number };
+	return row.count;
+}
+
 export function getMessage(db: Db, id: string): MessageRow | undefined {
 	return db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as MessageRow | undefined;
 }

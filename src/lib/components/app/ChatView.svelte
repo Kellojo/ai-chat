@@ -2,7 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
-	import { untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { ChatContainer, ChatContainerContent } from '$lib/components/ai/chat-container/index.js';
@@ -19,13 +19,15 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import ChatTopbar from './ChatTopbar.svelte';
 	import MessageTimeline from './MessageTimeline.svelte';
+	import { activeChats } from '$lib/state/active-chats.svelte.js';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
 	import {
 		chatMessageToUIMessage,
 		type Agent,
 		type ChatMessage,
 		type Conversation,
-		type ModelsByProvider
+		type ModelsByProvider,
+		type UIMessage
 	} from '$lib/types.js';
 	import type { TimeFormat } from '$lib/user-settings.js';
 
@@ -35,7 +37,8 @@
 		groups,
 		defaultModel,
 		timeFormat = 'auto',
-		personas
+		personas,
+		initiallyGenerating = false
 	}: {
 		conversation: Conversation;
 		initialMessages: ChatMessage[];
@@ -43,6 +46,7 @@
 		defaultModel?: { providerId: string; modelId: string } | null;
 		timeFormat?: TimeFormat;
 		personas?: Agent[];
+		initiallyGenerating?: boolean;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -51,19 +55,37 @@
 	let selectedFiles = $state<File[]>([]);
 	let fileInput: HTMLInputElement | undefined = $state();
 
-	const chat = new Chat({
-		id: untrack(() => conversation.id),
-		messages: untrack(() => initialMessages.map(chatMessageToUIMessage)),
-		transport: new DefaultChatTransport({
-			api: '/api/chat',
-			prepareSendMessagesRequest: ({ messages }) => ({
-				body: { conversationId: conversation.id, messages }
-			})
-		}),
-		onError: (error) => {
-			toast.error(error.message || 'Something went wrong');
+	function createChat(): Chat<UIMessage> {
+		return new Chat({
+			id: untrack(() => conversation.id),
+			messages: untrack(() => initialMessages.map(chatMessageToUIMessage)),
+			transport: new DefaultChatTransport({
+				api: '/api/chat',
+				prepareSendMessagesRequest: ({ messages }) => ({
+					body: { conversationId: conversation.id, messages }
+				})
+			}),
+			onError: (error) => {
+				toast.error(error.message || 'Something went wrong');
+			}
+		});
+	}
+
+	function initChat(): Chat<UIMessage> {
+		const id = untrack(() => conversation.id);
+		const existing = activeChats.get(id);
+		if (existing && (existing.status === 'submitted' || existing.status === 'streaming')) {
+			return existing;
 		}
-	});
+		if (existing) activeChats.delete(id);
+		return createChat();
+	}
+
+	let chat = $state(initChat());
+
+	const reusedLocal = activeChats.has(untrack(() => conversation.id));
+	// svelte-ignore state_referenced_locally
+	let remoteGenerating = $state(initiallyGenerating && !reusedLocal);
 
 	let prevStatus = $state<string>(chat.status);
 
@@ -72,9 +94,32 @@
 		initialMessages.map((m) => [m.id, m.createdAt])
 	);
 
-	const streaming = $derived(chat.status === 'streaming' || chat.status === 'submitted');
-	const waiting = $derived(chat.status === 'submitted');
+	const streaming = $derived(
+		chat.status === 'streaming' || chat.status === 'submitted' || remoteGenerating
+	);
+	const lastAssistant = $derived(chat.messages.findLast((m) => m.role === 'assistant'));
+	const waiting = $derived(
+		remoteGenerating ||
+			chat.status === 'submitted' ||
+			(chat.status === 'streaming' &&
+				(!lastAssistant ||
+					lastAssistant.parts.length === 0 ||
+					lastAssistant.parts.every((p) =>
+						p.type === 'text' || p.type === 'reasoning' ? p.text === '' : false
+					)))
+	);
 	const canSend = $derived((input.trim().length > 0 || selectedFiles.length > 0) && !streaming);
+
+	async function markRead() {
+		await fetch(`/api/conversations/${conversation.id}/read`, { method: 'POST' }).catch(
+			() => undefined
+		);
+		await invalidateAll();
+	}
+
+	onMount(() => {
+		if (!remoteGenerating) markRead();
+	});
 
 	$effect(() => {
 		const pending = pendingMessage.consume();
@@ -88,9 +133,32 @@
 	});
 
 	$effect(() => {
+		if (!remoteGenerating) return;
+		const id = conversation.id;
+		const interval = setInterval(() => {
+			(async () => {
+				const res = await fetch('/api/chat/active');
+				if (!res.ok) return;
+				const { conversationIds } = (await res.json()) as { conversationIds: string[] };
+				if (!conversationIds.includes(id)) {
+					remoteGenerating = false;
+					await invalidateAll();
+					await tick();
+					chat.messages = initialMessages.map(chatMessageToUIMessage);
+					await markRead();
+				}
+			})().catch(() => {});
+		}, 2000);
+		return () => clearInterval(interval);
+	});
+
+	$effect(() => {
 		const current = chat.status;
 		if (prevStatus !== 'ready' && current === 'ready') {
-			invalidateAll();
+			markRead();
+			if (activeChats.get(conversation.id) === chat) {
+				activeChats.delete(conversation.id);
+			}
 		}
 		prevStatus = current;
 	});
@@ -134,6 +202,7 @@
 			} else {
 				chat.sendMessage({ text: trimmed });
 			}
+			activeChats.set(conversation.id, chat);
 			input = '';
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to send message');
@@ -147,6 +216,7 @@
 
 	function regenerate(messageId: string) {
 		chat.regenerate({ messageId });
+		activeChats.set(conversation.id, chat);
 	}
 
 	function startEdit(messageId: string, text: string) {
@@ -172,6 +242,7 @@
 	{groups}
 	{defaultModel}
 	{personas}
+	personaLocked={chat.messages.length > 0}
 	onupdated={(updated) => (conversation = updated)}
 />
 

@@ -16,6 +16,7 @@ export interface ConversationRow {
 	max_tokens: number | null;
 	pinned: number;
 	agent_id: string | null;
+	last_read_at: number | null;
 	created_at: number;
 	updated_at: number;
 	deleted_at: number | null;
@@ -180,6 +181,30 @@ export function togglePin(db: Db, userId: string, id: string): ConversationRow |
 		id
 	);
 	return getConversation(db, userId, id);
+}
+
+export function markConversationRead(db: Db, userId: string, id: string): void {
+	db.prepare('UPDATE conversations SET last_read_at = ? WHERE id = ? AND user_id = ?').run(
+		Date.now(),
+		id,
+		userId
+	);
+}
+
+export function listUnreadChatIds(db: Db, userId: string): string[] {
+	return (
+		db
+			.prepare(
+				`SELECT c.id FROM conversations c
+				 WHERE c.user_id = ? AND c.kind = 'chat' AND c.deleted_at IS NULL
+				   AND EXISTS (
+				     SELECT 1 FROM messages m
+				     WHERE m.conversation_id = c.id AND m.role = 'assistant'
+				       AND m.created_at > COALESCE(c.last_read_at, 0)
+				   )`
+			)
+			.all(userId) as { id: string }[]
+	).map((row) => row.id);
 }
 
 export function searchConversations(db: Db, userId: string, query: string): ConversationRow[] {

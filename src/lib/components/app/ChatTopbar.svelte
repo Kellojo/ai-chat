@@ -16,12 +16,14 @@
 		groups,
 		defaultModel,
 		personas,
+		personaLocked = false,
 		onupdated
 	}: {
 		conversation: Conversation;
 		groups: ModelsByProvider[];
 		defaultModel?: { providerId: string; modelId: string } | null;
 		personas?: Agent[];
+		personaLocked?: boolean;
 		onupdated: (c: Conversation) => void;
 	} = $props();
 
@@ -77,10 +79,15 @@
 		<Select.Root
 			type="single"
 			value={conversation.agentId ?? ''}
-			disabled={saving}
+			disabled={saving || personaLocked}
 			onValueChange={(value) => patch({ agentId: value === '' ? null : value })}
 		>
-			<Select.Trigger class="w-48" title={personaLabel}>
+			<Select.Trigger
+				class="w-48"
+				title={personaLocked
+					? 'Persona can only be changed before the first message'
+					: personaLabel}
+			>
 				<span class="min-w-0 flex-1 truncate text-left">{personaLabel}</span>
 			</Select.Trigger>
 			<Select.Content>

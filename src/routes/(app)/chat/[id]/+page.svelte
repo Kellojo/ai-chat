@@ -13,5 +13,6 @@
 		defaultModel={data.defaultModel}
 		timeFormat={data.timeFormat}
 		personas={data.personas}
+		initiallyGenerating={data.generating}
 	/>
 {/key}

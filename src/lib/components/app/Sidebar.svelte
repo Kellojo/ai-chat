@@ -5,24 +5,30 @@
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import BotIcon from '@lucide/svelte/icons/bot';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PinOffIcon from '@lucide/svelte/icons/pin-off';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { authClient } from '$lib/auth-client.js';
+	import { activeChats } from '$lib/state/active-chats.svelte.js';
+	import { serverActiveChatIds } from '$lib/state/chat-status.svelte.js';
 	import type { Conversation } from '$lib/types.js';
 
 	let {
 		user,
 		conversations,
+		unreadIds,
 		onclose
 	}: {
 		user: { name: string; email: string };
 		conversations: Conversation[];
+		unreadIds: string[];
 		onclose: () => void;
 	} = $props();
 
@@ -42,10 +48,28 @@
 			.catch(() => {});
 	}
 
+	async function refreshActiveChats() {
+		const res = await fetch('/api/chat/active');
+		if (!res.ok) return;
+		const { conversationIds } = (await res.json()) as { conversationIds: string[] };
+		const next = new Set(conversationIds);
+		let completed = false;
+		for (const id of serverActiveChatIds) {
+			if (!next.has(id)) completed = true;
+		}
+		serverActiveChatIds.clear();
+		for (const id of next) serverActiveChatIds.add(id);
+		if (completed) await invalidateAll();
+	}
+
 	onMount(() => {
 		refreshAgentStats();
+		refreshActiveChats().catch(() => {});
 		const refreshIfVisible = () => {
-			if (document.visibilityState === 'visible') refreshAgentStats();
+			if (document.visibilityState === 'visible') {
+				refreshAgentStats();
+				refreshActiveChats().catch(() => {});
+			}
 		};
 		const interval = setInterval(refreshIfVisible, 5000);
 		document.addEventListener('visibilitychange', refreshIfVisible);
@@ -205,6 +229,16 @@
 					>
 						{c.title || 'New chat'}
 					</a>
+					{#if activeChats.has(c.id) || serverActiveChatIds.has(c.id)}
+						<LoaderCircleIcon
+							class="mr-1 size-3.5 shrink-0 animate-spin text-blue-600 dark:text-blue-400"
+						/>
+					{:else if unreadIds.includes(c.id) && page.url.pathname !== '/chat/' + c.id}
+						<span
+							class="size-2 shrink-0 rounded-full bg-blue-600 dark:bg-blue-400"
+							title="New messages"
+						></span>
+					{/if}
 					<span class="hidden shrink-0 gap-0.5 pr-1 group-hover:flex">
 						<button
 							class="rounded p-1 text-muted-foreground hover:text-foreground"
@@ -243,7 +277,15 @@
 	<div class="flex items-center justify-between gap-2 border-t p-3">
 		<span class="min-w-0 truncate text-sm" title={user.email}>{user.name}</span>
 		<div class="flex shrink-0 gap-1">
-			<Button variant="ghost" size="sm" href={resolve('/settings')}>Settings</Button>
+			<Button
+				variant="ghost"
+				size="icon"
+				href={resolve('/settings')}
+				aria-label="Settings"
+				title="Settings"
+			>
+				<SettingsIcon class="size-4" />
+			</Button>
 			<Button variant="ghost" size="sm" onclick={signOut}>Sign out</Button>
 		</div>
 	</div>

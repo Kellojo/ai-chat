@@ -48,7 +48,7 @@
 	<Select.Trigger class="w-64" {disabled} title={label}>
 		<span class="min-w-0 flex-1 truncate text-left">{label}</span>
 	</Select.Trigger>
-	<Select.Content>
+	<Select.Content class="max-h-[min(24rem,var(--bits-select-content-available-height))]">
 		{#each groups as group (group.provider.id)}
 			{#if group.models.length > 0}
 				<Select.Group>

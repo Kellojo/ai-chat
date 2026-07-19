@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { hasActiveStream } from '$lib/server/chat/streams.js';
 import { getDb } from '$lib/server/db/index.js';
 import { listPersonaAgents, toPublic as agentToPublic } from '$lib/server/db/repo/agents.js';
 import { findModel, findRoleModel, listEnabledModels } from '$lib/server/db/repo/models.js';
@@ -35,6 +36,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		groups: listModelsGrouped(),
 		defaultModel,
 		timeFormat: getTimeFormat(db, user.id),
-		personas: listPersonaAgents(db, user.id).map(agentToPublic)
+		personas: listPersonaAgents(db, user.id).map(agentToPublic),
+		generating: hasActiveStream(conversation.id)
 	};
 };

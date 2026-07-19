@@ -16,6 +16,7 @@
 		<Sidebar
 			user={data.user}
 			conversations={data.conversations}
+			unreadIds={data.unreadIds}
 			onclose={() => (sidebarOpen = false)}
 		/>
 	</div>

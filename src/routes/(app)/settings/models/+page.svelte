@@ -10,7 +10,6 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -134,6 +133,10 @@
 			Add model
 		</Button>
 	</div>
+	<p class="text-sm text-muted-foreground">
+		To pick which model is used for new chats, title generation, memory, and research, see the
+		Defaults page.
+	</p>
 
 	{#each data.providers as provider (provider.id)}
 		{@const models = modelsFor(provider.id)}
@@ -203,12 +206,6 @@
 	{:else}
 		<p class="text-muted-foreground">No providers configured yet.</p>
 	{/each}
-
-	<Separator />
-	<p class="text-sm text-muted-foreground">
-		To pick which model is used for new chats, title generation, memory, and research, see the
-		Defaults page.
-	</p>
 </div>
 
 <Dialog.Root bind:open={addOpen}>

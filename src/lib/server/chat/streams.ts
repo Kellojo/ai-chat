@@ -17,3 +17,11 @@ export function releaseStream(conversationId: string, controller: AbortControlle
 		controllers.delete(conversationId);
 	}
 }
+
+export function listActiveStreamIds(): string[] {
+	return [...controllers.keys()];
+}
+
+export function hasActiveStream(conversationId: string): boolean {
+	return controllers.has(conversationId);
+}

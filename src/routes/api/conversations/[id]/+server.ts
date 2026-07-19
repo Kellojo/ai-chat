@@ -9,7 +9,11 @@ import {
 	toPublic as conversationToPublic,
 	updateConversation
 } from '$lib/server/db/repo/conversations.js';
-import { listMessages, toPublic as messageToPublic } from '$lib/server/db/repo/messages.js';
+import {
+	countMessages,
+	listMessages,
+	toPublic as messageToPublic
+} from '$lib/server/db/repo/messages.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = ({ locals, params }) => {
@@ -42,6 +46,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!parsed.success) error(400, { message: parsed.error.issues[0]?.message ?? 'Invalid body' });
 	const db = getDb();
 	const data = parsed.data;
+	if (data.agentId !== undefined) {
+		const conversation = getConversation(db, user.id, params.id);
+		if (
+			conversation &&
+			data.agentId !== conversation.agent_id &&
+			countMessages(db, params.id) > 0
+		) {
+			error(409, { message: 'Persona can only be changed before the first message' });
+		}
+	}
 	if (data.agentId != null) {
 		const agent = getAgent(db, data.agentId);
 		if (!agent || (agent.user_id !== user.id && agent.user_id !== null)) {
