@@ -8,18 +8,18 @@ Conventions: SvelteKit 2 + Svelte 5 (runes only, no legacy stores/`export let`),
 
 ## 1. Milestones & sequencing
 
-| # | Milestone | Delivers | Exit criteria |
-|---|---|---|---|
-| M0 | Scaffold | SvelteKit app, TS strict, Tailwind, shadcn-svelte, sv-prompt-kit, eslint/prettier, vitest, Docker skeleton | `pnpm dev` boots; CI runs lint+check+tests |
-| M1 | Config, DB, auth | env parsing, SQLite + migrations, better-auth (email/pwd, OIDC), roles, hooks | Sign up / login / logout; first user auto-admin; migrations run on boot |
-| M2 | Providers & models | providers/models CRUD (admin), secret encryption, provider registry, "fetch models" | Anthropic + OpenAI-compatible provider configurable; model list populates |
-| M3 | Chat core | conversations/messages repos, `/api/chat` streaming, Chat-mode UI (timeline, input, stop/regenerate/edit, sidebar, title gen, attachments) | Full streaming round-trip persisted; reload rehydrates |
-| M4 | MCP & tools | MCP client manager, 7 bundled stdio servers + skills server, tool registry, `<ToolCallCard>` | Tool calls render transparently in chat; per-mode allow-lists work |
-| M5 | Agents | agent CRUD, scheduler, runner, run views, HTTP trigger + API keys | Scheduled agent runs end-to-end; steps visible in run view |
-| M6 | Memory | OKF bundle ops, FTS5 index + boot reconcile, memory MCP backed by real store, extraction agent, `/memory` UI | Auto-extraction writes concepts; curation UI edits + audit log |
-| M7 | Skills | skill scanner/loader, `load_skill` tools, `/skill` manual invoke, git import, `/skills` UI | Skill loads inject body; git import round-trips |
-| M8 | Deep research | research persona + `/research` route, rounds indicator, report export | Research run produces cited markdown report saved to memory |
-| M9 | PWA & hardening | PWA manifest/SW, CSP, SSRF guard, GC jobs, admin logs, backups doc | Installable offline shell; security checklist passes |
+| #   | Milestone          | Delivers                                                                                                                                   | Exit criteria                                                             |
+| --- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| M0  | Scaffold           | SvelteKit app, TS strict, Tailwind, shadcn-svelte, sv-prompt-kit, eslint/prettier, vitest, Docker skeleton                                 | `pnpm dev` boots; CI runs lint+check+tests                                |
+| M1  | Config, DB, auth   | env parsing, SQLite + migrations, better-auth (email/pwd, OIDC), roles, hooks                                                              | Sign up / login / logout; first user auto-admin; migrations run on boot   |
+| M2  | Providers & models | providers/models CRUD (admin), secret encryption, provider registry, "fetch models"                                                        | Anthropic + OpenAI-compatible provider configurable; model list populates |
+| M3  | Chat core          | conversations/messages repos, `/api/chat` streaming, Chat-mode UI (timeline, input, stop/regenerate/edit, sidebar, title gen, attachments) | Full streaming round-trip persisted; reload rehydrates                    |
+| M4  | MCP & tools        | MCP client manager, 7 bundled stdio servers + skills server, tool registry, `<ToolCallCard>`                                               | Tool calls render transparently in chat; per-mode allow-lists work        |
+| M5  | Agents             | agent CRUD, scheduler, runner, run views, HTTP trigger + API keys                                                                          | Scheduled agent runs end-to-end; steps visible in run view                |
+| M6  | Memory             | OKF bundle ops, FTS5 index + boot reconcile, memory MCP backed by real store, extraction agent, `/memory` UI                               | Auto-extraction writes concepts; curation UI edits + audit log            |
+| M7  | Skills             | skill scanner/loader, `load_skill` tools, `/skill` manual invoke, git import, `/skills` UI                                                 | Skill loads inject body; git import round-trips                           |
+| M8  | Deep research      | research persona + `/research` route, rounds indicator, report export                                                                      | Research run produces cited markdown report saved to memory               |
+| M9  | PWA & hardening    | PWA manifest/SW, CSP, SSRF guard, GC jobs, admin logs, backups doc                                                                         | Installable offline shell; security checklist passes                      |
 
 Dependencies: M3 needs M2 (models); M4 before M5 (agents use tools); M5 before M6 (extraction is an agent); M6/M7 before M8 (research uses memory + skills).
 
@@ -106,6 +106,7 @@ ai-chat/
 ## 4. Database
 
 ### 4.1 Migration runner
+
 - `migrate.ts` applies `migrations/*.sql` in order, tracked in `_migrations(version)`; runs on boot before anything else; forward-only (rollback notes in file headers per §17.3).
 - Pragmas on open: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`.
 
@@ -165,12 +166,14 @@ documents_fts(path UNINDEXED, content)
 ```
 
 Two deliberate simplifications vs. requirements §3.2 (flagging, easy to revert):
+
 1. **`messages.parts` JSON** instead of separate `content`/`tool_calls`/`tool_results` columns — §4.4 already requires part-level ordering for rendering and persistence; storing v5 `UIMessage.parts` verbatim is the honest representation. Plain text is duplicated into `messages_fts` for search.
 2. **Agent-run transcripts are conversations** (`kind='agent-run'`, hidden from sidebar) — reuses messages/parts persistence and the timeline UI for run views (§11.4) instead of a parallel log format.
 
 Schema completions required by the spec's own text (not new features): `deleted_at` (§7.5), `max_steps/temperature/max_tokens` (§7.2), `memory_writes.author/diff` (§8.5).
 
 ### 4.3 Repository layer
+
 - One module per table in `db/repo/`, plain functions over prepared statements.
 - **All** user-scoped queries take `userId` as first arg and filter in SQL (§19). Admin tables (`providers`, `models`, `mcp_servers`, `settings`) live behind `requireAdmin` at the route layer instead.
 - No ORM; ~30 queries total, hand-written SQL is smaller than drizzle's setup here. Revisit if queries grow.
@@ -180,63 +183,73 @@ Schema completions required by the spec's own text (not new features): `deleted_
 ## 5. Server modules — key APIs
 
 ### 5.1 LLM registry (`llm/registry.ts`)
+
 ```ts
 resolveModel(ref: { providerId: string; modelId: string }): LanguageModel      // throws if disabled
 listEnabledModels(): GroupedByProvider[]                                       // for pickers
 roleModel(role: 'chat' | 'memory' | 'research'): LanguageModel                 // §14.2 defaults
 fetchProviderModels(providerId: string): Promise<string[]>                     // /models probe
 ```
+
 - Builds `@ai-sdk/anthropic` / `createOpenAICompatible()` instances from DB rows, decrypting `api_key_enc` in-process only. Instances cached per provider id; cache busted on provider update.
 
 ### 5.2 Tool registry (`tools/registry.ts`)
+
 ```ts
 buildTools(ctx: {
   user: User; mode: 'chat' | 'agent';
   memoryEnabled: boolean; agentAllowlist?: string[];
 }): Promise<Record<string, Tool>>
 ```
+
 - Sources: all enabled MCP servers (bundled stdio + remote HTTP/SSE from `mcp_servers`).
 - Filters: server scopes × mode allow-list × (`memoryEnabled === false` ⇒ drop `memory` server tools) × `agentAllowlist`.
 - Each MCP tool wrapped (`tools/wrap.ts`): `inputSchema: jsonSchema(mcpTool.inputSchema)`, `execute` → MCP `callTool` with per-tool retry (exponential backoff, default 2, §11.5), plus app metadata (display name, icon) carried in a sidecar map keyed by tool name for `<ToolCallCard>`.
 
 ### 5.3 MCP client manager (`mcp/clientManager.ts`)
+
 - Pool of `experimental_createMCPClient` instances: stdio servers spawned once at boot as child processes (`node dist/mcp/<name>.js`; `tsx` in dev), HTTP/SSE clients per config row.
 - Health check + `testConnection(serverId)` for the settings UI; reconnect with backoff on stdio crash.
 - Bundled servers are plain MCP SDK servers (`@modelcontextprotocol/sdk`) in `mcp/servers/*`, each <150 LOC:
 
-| Server | Notes |
-|---|---|
-| `webfetch` | fetch → readable markdown; **SSRF guard**: block loopback/RFC1918/link-local unless `WEBFETCH_ALLOW_PRIVATE=true` (see §11 decisions) |
-| `datetime` | `now/format/convert` via luxon, `TZ` default |
-| `memory` | CRUD + search over `memory/bundle.ts` + `fts.ts`; scoped to caller user passed via spawn env |
-| `chat-search` | FTS5 over caller's conversations only |
-| `documents` | CRUD + search under `/documents`, path-prefix validated |
-| `bash` | `execFile` with fixed allow-list (`ls grep glob cat head tail wc`), no shell, `cwd` = caller workspace, arg paths validated inside workspace |
-| `settings` | `get_setting`, `list_settings`; `update_setting` present but **disabled by default** (config flag + admin-only) |
-| `skills` | `load_skill(name)`, `read_skill_reference(name, path)` — new bundled server; spec §9.4 says "an MCP tool" without assigning a server |
+| Server        | Notes                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `webfetch`    | fetch → readable markdown; **SSRF guard**: block loopback/RFC1918/link-local unless `WEBFETCH_ALLOW_PRIVATE=true` (see §11 decisions)        |
+| `datetime`    | `now/format/convert` via luxon, `TZ` default                                                                                                 |
+| `memory`      | CRUD + search over `memory/bundle.ts` + `fts.ts`; scoped to caller user passed via spawn env                                                 |
+| `chat-search` | FTS5 over caller's conversations only                                                                                                        |
+| `documents`   | CRUD + search under `/documents`, path-prefix validated                                                                                      |
+| `bash`        | `execFile` with fixed allow-list (`ls grep glob cat head tail wc`), no shell, `cwd` = caller workspace, arg paths validated inside workspace |
+| `settings`    | `get_setting`, `list_settings`; `update_setting` present but **disabled by default** (config flag + admin-only)                              |
+| `skills`      | `load_skill(name)`, `read_skill_reference(name, path)` — new bundled server; spec §9.4 says "an MCP tool" without assigning a server         |
 
 Caller context (user id, workspace path) is passed to stdio servers via spawn env — every MCP call inherits the right scoping without trusting model-supplied args.
 
 ### 5.4 Agents (`agents/runner.ts`, `agents/scheduler.ts`)
+
 ```ts
 runAgent(agent: Agent, trigger: Trigger, forUserId?: string): Promise<AgentRun>
 ```
+
 - Creates run row + hidden transcript conversation + workspace (`/workspaces/agent-<id>-<runId>/`), then the same `streamText` loop as chat with `stopWhen: stepCountIs(agent.maxSteps ?? env.AGENT_MAX_STEPS)`.
-- Parts persisted incrementally via `onStepFinish` (resumable *view*, §4.2); crash recovery: boot sweep marks `running → failed` (resume of half-finished runs is out of scope for v1 — see §11).
+- Parts persisted incrementally via `onStepFinish` (resumable _view_, §4.2); crash recovery: boot sweep marks `running → failed` (resume of half-finished runs is out of scope for v1 — see §11).
 - Scheduler: node-cron, one registration per enabled schedule-agent, `next_run_at` persisted; on boot, run any agent whose `next_run_at` is in the past once, then re-register.
 - `builtin.ts` seeds the `memory-extraction` agent (`user_id NULL`, cron from `MEMORY_EXTRACT_SCHEDULE`); runner executes it **once per user with activity since `last_run_at`**, passing that user as caller context (§8.2).
 
 ### 5.5 Memory (`memory/bundle.ts`, `memory/fts.ts`)
+
 - `bundle.ts`: `read/write/move/delete concept`, frontmatter via `gray-matter`; every mutation → `memory_writes` row (author, unified diff) + `index.md` regen + FTS upsert. Files are source of truth (§8.1).
 - `fts.reconcileOnBoot()`: walk bundles, upsert changed/deleted rows (covers external edits on mounted volumes). Manual reindex endpoint reuses it.
 - `paths.ts`: all concept paths normalized + rejected if escaping `<root>/<user_id>/` or `/memory/shared/`.
 
 ### 5.6 Skills (`skills/scanner.ts`, `skills/gitImport.ts`)
+
 - Scanner: readdir of `/memory/<uid>/skills` + `/memory/shared/skills`, parse `skill.md` frontmatter (zod), cache by mtime. No DB table (§9.7).
 - `load_skill` resolves name → scope (user wins over shared) → returns body + reference listing; logs `skill_invocations`.
 - Git import: `isomorphic-git` (pure JS, no git binary in image) shallow-clone to temp → validate → copy; re-import preserves `*.local` files; sets frontmatter `source: git:<repo>`.
 
 ### 5.7 Workspaces & GC (`workspaces.ts`, `jobs.ts`)
+
 - `ensureWorkspace(kind, id)`; `assertInside(root, candidate)` used by bash/documents servers.
 - `jobs.ts`: on boot + every 24h — GC idle workspaces (`WORKSPACE_GC_DAYS`), purge conversations soft-deleted >30d, GC agent run workspaces >30d.
 
@@ -246,44 +259,44 @@ runAgent(agent: Agent, trigger: Trigger, forUserId?: string): Promise<AgentRun>
 
 Auth handled by better-auth at `POST/GET /api/auth/*` (handler delegates to the better-auth instance). Everything below requires a session unless noted; admin rows marked 🔒.
 
-| Route | Methods | Purpose |
-|---|---|---|
-| `/api/chat` | POST | Stream a turn (UI message stream, §7.1). Body: `{ conversationId, messages }` |
-| `/api/chat/[id]/abort` | POST | Abort in-flight stream for conversation |
-| `/api/conversations` | GET, POST | List (sidebar, grouped) / create |
-| `/api/conversations/[id]` | GET, PATCH, DELETE | Load + messages; update (title, mode, model, system prompt, memory toggle, advanced); soft delete |
-| `/api/conversations/[id]/pin` | POST | Toggle pin |
-| `/api/conversations/search` | GET | `?q=` FTS5 over titles + message text |
-| `/api/conversations/[id]/attachments` | POST | Multipart upload → workspace `attachments/` (size/type limits, §11) |
-| `/api/providers` 🔒 | GET, POST | List / create |
-| `/api/providers/[id]` 🔒 | PATCH, DELETE | Update (re-encrypts key), delete |
-| `/api/providers/[id]/fetch-models` 🔒 | POST | Probe provider, upsert `models` |
-| `/api/models` | GET | Enabled models grouped by provider (any user; picker) |
-| `/api/models/[id]` 🔒 | PATCH | enable/disable, display name, capabilities, `is_default_for` |
-| `/api/mcp-servers` 🔒 | GET, POST | List / add remote |
-| `/api/mcp-servers/[id]` 🔒 | PATCH, DELETE | Update, delete |
-| `/api/mcp-servers/[id]/test` 🔒 | POST | Test connection, list exposed tools |
-| `/api/agents` | GET, POST | Own agents list / create |
-| `/api/agents/[id]` | GET, PATCH, DELETE | Owner-scoped |
-| `/api/agents/[id]/run` | POST | **HTTP trigger** — accepts session *or* `Authorization: Bearer <api_key>` (§11.2) |
-| `/api/agents/[id]/runs` | GET | Run history |
-| `/api/agent-runs/[id]` | GET | Run detail incl. transcript conversation id |
-| `/api/api-keys` | GET, POST | List (label/last_used) / create (raw shown once) |
-| `/api/api-keys/[id]` | DELETE | Revoke |
-| `/api/memory/tree` | GET | Bundle tree (`?scope=shared` for admins) |
-| `/api/memory/concept` | GET, PUT, DELETE | Read / edit / delete by path (writes audit rows) |
-| `/api/memory/search` | GET | `?q=` FTS5 (UI-side search) |
-| `/api/memory/writes` | GET | Audit log (`?path=` filter) |
-| `/api/memory/reindex` 🔒 | POST | Rebuild memory FTS |
-| `/api/memory/extract` | POST | Manual trigger of extraction agent ("Extract memory now") |
-| `/api/skills` | GET, POST | List (user+shared) / create |
-| `/api/skills/[name]` | GET, PUT, DELETE | Read/edit/delete (`?scope=`) |
-| `/api/skills/import` | POST | `{ gitUrl, branch?, path? }` |
-| `/api/skills/[name]/promote` 🔒 | POST | Copy user skill → shared |
-| `/api/research` | POST | Start research session → `{ runId }` (backed by research persona agent) |
-| `/api/settings` 🔒 | GET, PUT | Global settings (per-user prefs live on `users.preferences` via better-auth hook) |
-| `/api/admin/logs` 🔒 | GET | Recent runs/errors/MCP status (§18) |
-| `/api/health` | GET | unauthenticated, docker healthcheck |
+| Route                                 | Methods            | Purpose                                                                                           |
+| ------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `/api/chat`                           | POST               | Stream a turn (UI message stream, §7.1). Body: `{ conversationId, messages }`                     |
+| `/api/chat/[id]/abort`                | POST               | Abort in-flight stream for conversation                                                           |
+| `/api/conversations`                  | GET, POST          | List (sidebar, grouped) / create                                                                  |
+| `/api/conversations/[id]`             | GET, PATCH, DELETE | Load + messages; update (title, mode, model, system prompt, memory toggle, advanced); soft delete |
+| `/api/conversations/[id]/pin`         | POST               | Toggle pin                                                                                        |
+| `/api/conversations/search`           | GET                | `?q=` FTS5 over titles + message text                                                             |
+| `/api/conversations/[id]/attachments` | POST               | Multipart upload → workspace `attachments/` (size/type limits, §11)                               |
+| `/api/providers` 🔒                   | GET, POST          | List / create                                                                                     |
+| `/api/providers/[id]` 🔒              | PATCH, DELETE      | Update (re-encrypts key), delete                                                                  |
+| `/api/providers/[id]/fetch-models` 🔒 | POST               | Probe provider, upsert `models`                                                                   |
+| `/api/models`                         | GET                | Enabled models grouped by provider (any user; picker)                                             |
+| `/api/models/[id]` 🔒                 | PATCH              | enable/disable, display name, capabilities, `is_default_for`                                      |
+| `/api/mcp-servers` 🔒                 | GET, POST          | List / add remote                                                                                 |
+| `/api/mcp-servers/[id]` 🔒            | PATCH, DELETE      | Update, delete                                                                                    |
+| `/api/mcp-servers/[id]/test` 🔒       | POST               | Test connection, list exposed tools                                                               |
+| `/api/agents`                         | GET, POST          | Own agents list / create                                                                          |
+| `/api/agents/[id]`                    | GET, PATCH, DELETE | Owner-scoped                                                                                      |
+| `/api/agents/[id]/run`                | POST               | **HTTP trigger** — accepts session _or_ `Authorization: Bearer <api_key>` (§11.2)                 |
+| `/api/agents/[id]/runs`               | GET                | Run history                                                                                       |
+| `/api/agent-runs/[id]`                | GET                | Run detail incl. transcript conversation id                                                       |
+| `/api/api-keys`                       | GET, POST          | List (label/last_used) / create (raw shown once)                                                  |
+| `/api/api-keys/[id]`                  | DELETE             | Revoke                                                                                            |
+| `/api/memory/tree`                    | GET                | Bundle tree (`?scope=shared` for admins)                                                          |
+| `/api/memory/concept`                 | GET, PUT, DELETE   | Read / edit / delete by path (writes audit rows)                                                  |
+| `/api/memory/search`                  | GET                | `?q=` FTS5 (UI-side search)                                                                       |
+| `/api/memory/writes`                  | GET                | Audit log (`?path=` filter)                                                                       |
+| `/api/memory/reindex` 🔒              | POST               | Rebuild memory FTS                                                                                |
+| `/api/memory/extract`                 | POST               | Manual trigger of extraction agent ("Extract memory now")                                         |
+| `/api/skills`                         | GET, POST          | List (user+shared) / create                                                                       |
+| `/api/skills/[name]`                  | GET, PUT, DELETE   | Read/edit/delete (`?scope=`)                                                                      |
+| `/api/skills/import`                  | POST               | `{ gitUrl, branch?, path? }`                                                                      |
+| `/api/skills/[name]/promote` 🔒       | POST               | Copy user skill → shared                                                                          |
+| `/api/research`                       | POST               | Start research session → `{ runId }` (backed by research persona agent)                           |
+| `/api/settings` 🔒                    | GET, PUT           | Global settings (per-user prefs live on `users.preferences` via better-auth hook)                 |
+| `/api/admin/logs` 🔒                  | GET                | Recent runs/errors/MCP status (§18)                                                               |
+| `/api/health`                         | GET                | unauthenticated, docker healthcheck                                                               |
 
 Non-chat mutations are plain JSON endpoints consumed via `fetch` + `invalidateAll` / targeted `depends`. SvelteKit remote functions are a future option; REST keeps the agent HTTP trigger and PWA cache model boring and explicit.
 
@@ -316,15 +329,17 @@ Client (Chat class) ──POST /api/chat──▶ hooks (session) ─▶ chat/se
 ## 8. Frontend structure & state (Svelte 5 runes)
 
 ### 8.1 Rules
+
 - Runes everywhere: `$state`, `$derived`, `$effect`, `$props`, `$bindable`. No `writable` stores, no `export let`, no `$app/stores` (`$app/state` instead).
 - Shared client state lives in `.svelte.ts` modules; component-local state stays in the component.
 - Server data via `load` + `invalidate`/`depends`; long-lived reactive objects (the `Chat` class) are fine in components.
 
 ### 8.2 Shared state example — `lib/state/sidebar.svelte.ts`
+
 ```ts
 class SidebarState {
-  open = $state(true);
-  toggle = () => (this.open = !this.open);
+	open = $state(true);
+	toggle = () => (this.open = !this.open);
 }
 export const sidebar = new SidebarState();
 ```
@@ -335,15 +350,15 @@ export const sidebar = new SidebarState();
 
 ```svelte
 <script lang="ts">
-  import { page } from '$app/state';
-  import type { PageData } from './$types';
-  import ChatView from '$lib/components/app/ChatView.svelte';
+	import { page } from '$app/state';
+	import type { PageData } from './$types';
+	import ChatView from '$lib/components/app/ChatView.svelte';
 
-  let { data }: { data: PageData } = $props();
+	let { data }: { data: PageData } = $props();
 </script>
 
 {#key page.params.id}
-  <ChatView conversation={data.conversation} initialMessages={data.messages} />
+	<ChatView conversation={data.conversation} initialMessages={data.messages} />
 {/key}
 ```
 
@@ -351,36 +366,39 @@ export const sidebar = new SidebarState();
 
 ```svelte
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { Chat } from '@ai-sdk/svelte';
-  import { DefaultChatTransport } from 'ai';
-  import { toast } from 'svelte-sonner';
-  import type { Conversation, UIMessage } from '$lib/types';
-  import MessageTimeline from './MessageTimeline.svelte';
-  import { PromptInput } from '$lib/components/ai/prompt-input/index.js';
+	import { untrack } from 'svelte';
+	import { Chat } from '@ai-sdk/svelte';
+	import { DefaultChatTransport } from 'ai';
+	import { toast } from 'svelte-sonner';
+	import type { Conversation, UIMessage } from '$lib/types';
+	import MessageTimeline from './MessageTimeline.svelte';
+	import { PromptInput } from '$lib/components/ai/prompt-input/index.js';
 
-  let { conversation, initialMessages }: {
-    conversation: Conversation;
-    initialMessages: UIMessage[];
-  } = $props();
+	let {
+		conversation,
+		initialMessages
+	}: {
+		conversation: Conversation;
+		initialMessages: UIMessage[];
+	} = $props();
 
-  // untrack: intentionally captures initialMessages once; the parent remounts
-  // this component per conversation via {#key}, so "initial" is always correct.
-  const chat = new Chat({
-    messages: untrack(() => initialMessages),
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
-    onError: (e) => toast.error(e.message)
-  });
+	// untrack: intentionally captures initialMessages once; the parent remounts
+	// this component per conversation via {#key}, so "initial" is always correct.
+	const chat = new Chat({
+		messages: untrack(() => initialMessages),
+		transport: new DefaultChatTransport({ api: '/api/chat' }),
+		onError: (e) => toast.error(e.message)
+	});
 
-  let input = $state('');
-  const busy = $derived(chat.status === 'submitted' || chat.status === 'streaming');
+	let input = $state('');
+	const busy = $derived(chat.status === 'submitted' || chat.status === 'streaming');
 
-  function send() {
-    const text = input.trim();
-    if (!text || busy) return;
-    input = '';
-    chat.sendMessage({ text }, { body: { conversationId: conversation.id } });
-  }
+	function send() {
+		const text = input.trim();
+		if (!text || busy) return;
+		input = '';
+		chat.sendMessage({ text }, { body: { conversationId: conversation.id } });
+	}
 </script>
 
 <MessageTimeline messages={chat.messages} status={chat.status} />
@@ -392,6 +410,7 @@ export const sidebar = new SidebarState();
 - Persona/mode/model/memory toggles PATCH the conversation; next turn picks it up server-side.
 
 ### 8.4 Pages
+
 - `/agents`: `DataTable` + editor drawer (`Sheet`); run view = `StepList` over the transcript conversation's messages + run meta header.
 - `/memory`: three-pane `Resizable` (tree | markdown+frontmatter form | `AuditEntry` history).
 - `/skills`: list + editor (markdown textarea + frontmatter form) + import dialog.
@@ -412,23 +431,23 @@ export const sidebar = new SidebarState();
 
 ## 10. Testing
 
-| Layer | Tool | Coverage |
-|---|---|---|
-| Unit | vitest | repos (in-memory SQLite), crypto round-trip, path guards, frontmatter parsing, tool filtering matrix (mode × toggle × allowlist), bash allow-list rejection |
-| AI behavior | vitest + `MockLanguageModelV2` (`ai/test`) | chat pipeline persists parts; abort persists partial; tool loop honors `stopWhen`; extraction agent writes valid OKF |
-| API | vitest (handlers with mocked `locals`) | auth guards, user scoping (cross-user 404s), admin gates |
-| e2e | playwright | signup → add provider (mock) → chat round-trip → tool card visible → memory extracted (manual trigger) → visible in `/memory` |
-| Smoke | docker build + container boot | migrations apply, healthcheck 200 |
+| Layer       | Tool                                       | Coverage                                                                                                                                                    |
+| ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit        | vitest                                     | repos (in-memory SQLite), crypto round-trip, path guards, frontmatter parsing, tool filtering matrix (mode × toggle × allowlist), bash allow-list rejection |
+| AI behavior | vitest + `MockLanguageModelV2` (`ai/test`) | chat pipeline persists parts; abort persists partial; tool loop honors `stopWhen`; extraction agent writes valid OKF                                        |
+| API         | vitest (handlers with mocked `locals`)     | auth guards, user scoping (cross-user 404s), admin gates                                                                                                    |
+| e2e         | playwright                                 | signup → add provider (mock) → chat round-trip → tool card visible → memory extracted (manual trigger) → visible in `/memory`                               |
+| Smoke       | docker build + container boot              | migrations apply, healthcheck 200                                                                                                                           |
 
 `pnpm check` (svelte-check), `pnpm lint`, `pnpm test` gate every milestone.
 
 ---
 
-## 11. Open decisions before M0 (from review, need your call)
+## 11. Decisions (locked)
 
-1. **SSRF guard** on webfetch: block private ranges by default + `WEBFETCH_ALLOW_PRIVATE` override? (recommended: yes — LM Studio users may *want* to fetch LAN URLs, hence the escape hatch) -> no, keep it as is, allow everything.
-2. **Memory delete exposure**: keep `delete_concept` available to the model in chat mode, or extraction/curation-UI only? (recommended: UI + extraction agent only) -> keep as is
-3. **Attachment limits**: propose 10 MB/file, images + PDFs only in v1. -> set limit to 50mb by default, add a setting for this
-4. **Run resume**: v1 marks interrupted agent runs `failed` on boot (view stays). True resume is v2 — OK? -> yes
-5. **Agent-run caller identity**: background runs act as the agent's owner (scopes `chat-search`, `settings` admin check, workspace). Confirm. -> yes
-6. **`tool_results` retention** (requirements §21): propose no cap in v1 + document DB growth; revisit with usage data. -> fine for v1
+1. **SSRF**: no guard — webfetch may fetch any URL, including private/LAN addresses. (No `WEBFETCH_ALLOW_PRIVATE` env var.)
+2. **Memory tools in chat**: all memory MCP tools (including `delete_concept`) stay registered in chat mode.
+3. **Attachments**: 50 MB per file by default via `MAX_ATTACHMENT_SIZE_MB` (env), overridable in Settings UI.
+4. **Run resume**: interrupted agent runs are marked `failed` on boot; the run view stays readable. True resume is v2.
+5. **Agent caller identity**: background runs act as the agent's owner (scopes `chat-search`, `settings` admin check, workspace).
+6. **`tool_results` retention**: no cap in v1; monitor DB growth, revisit with usage data.

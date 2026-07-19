@@ -1,0 +1,177 @@
+import fs from 'node:fs';
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 'ai';
+import { config } from '../config.js';
+import { getDb, type Db } from '../db/index.js';
+import {
+	getConversation,
+	touchConversation,
+	updateConversation,
+	type ConversationRow
+} from '../db/repo/conversations.js';
+import {
+	createMessage,
+	deleteMessagesNotIn,
+	extractText,
+	getMessage,
+	updateMessage
+} from '../db/repo/messages.js';
+import { getAttachment, linkAttachmentsToMessage } from '../db/repo/attachments.js';
+import { findRoleModel } from '../db/repo/models.js';
+import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
+import { buildSystemPrompt } from '../llm/systemPrompt.js';
+import { resolveAttachment } from '../workspaces.js';
+import { registerStream, releaseStream } from './streams.js';
+import { generateConversationTitle } from './title.js';
+
+export class ChatRequestError extends Error {
+	constructor(
+		public status: number,
+		message: string
+	) {
+		super(message);
+	}
+}
+
+const ATTACHMENT_URL_PREFIX = '/api/conversations/';
+
+function attachmentIdFromUrl(url: string, conversationId: string): string | null {
+	const prefix = `${ATTACHMENT_URL_PREFIX}${conversationId}/attachments/`;
+	if (!url.startsWith(prefix)) return null;
+	const id = url.slice(prefix.length).split(/[?#]/)[0];
+	return id || null;
+}
+
+function inlineAttachmentParts(
+	db: Db,
+	conversationId: string,
+	messages: UIMessage[]
+): UIMessage[] {
+	return messages.map((message) => ({
+		...message,
+		parts: message.parts.map((part) => {
+			if (part.type !== 'file') return part;
+			const attachmentId = attachmentIdFromUrl(part.url, conversationId);
+			if (!attachmentId) return part;
+			const row = getAttachment(db, attachmentId);
+			if (!row) return part;
+			try {
+				const bytes = fs.readFileSync(resolveAttachment(row.path));
+				return { ...part, url: `data:${row.mime};base64,${bytes.toString('base64')}` };
+			} catch {
+				return part;
+			}
+		})
+	}));
+}
+
+function ensureModel(db: Db, userId: string, conversation: ConversationRow): ConversationRow {
+	if (conversation.provider_id && conversation.model_id) return conversation;
+	const roleDefault = findRoleModel(db, 'chat');
+	if (!roleDefault) {
+		throw new ChatRequestError(
+			400,
+			'No model selected for this conversation and no default chat model is configured'
+		);
+	}
+	const updated = updateConversation(db, userId, conversation.id, {
+		providerId: roleDefault.provider_id,
+		modelId: roleDefault.model_id
+	});
+	return updated ?? conversation;
+}
+
+function syncMessages(db: Db, conversationId: string, incoming: UIMessage[]): UIMessage {
+	deleteMessagesNotIn(db, conversationId, incoming.map((m) => m.id));
+	const last = incoming[incoming.length - 1];
+	if (!last || last.role !== 'user') {
+		throw new ChatRequestError(400, 'Last message must be a user message');
+	}
+	const existing = getMessage(db, last.id);
+	if (existing) {
+		updateMessage(db, last.id, { parts: last.parts, error: null, status: 'complete' });
+	} else {
+		createMessage(db, {
+			id: last.id,
+			conversationId,
+			role: 'user',
+			parts: last.parts,
+			status: 'complete'
+		});
+	}
+	const attachmentIds = last.parts
+		.filter((p) => p.type === 'file')
+		.map((p) => attachmentIdFromUrl((p as { url: string }).url, conversationId))
+		.filter((id): id is string => id !== null);
+	linkAttachmentsToMessage(db, last.id, attachmentIds);
+	return last;
+}
+
+export async function handleChatRequest(
+	userId: string,
+	body: { conversationId: string; messages: UIMessage[] }
+): Promise<Response> {
+	const db = getDb();
+	let conversation = getConversation(db, userId, body.conversationId);
+	if (!conversation) throw new ChatRequestError(404, 'Conversation not found');
+	if (conversation.kind !== 'chat') throw new ChatRequestError(400, 'Not a chat conversation');
+
+	conversation = ensureModel(db, userId, conversation);
+	const lastUserMessage = syncMessages(db, conversation.id, body.messages);
+	touchConversation(db, conversation.id);
+
+	const ref = { providerId: conversation.provider_id!, modelId: conversation.model_id! };
+	let model;
+	try {
+		model = resolveModel(ref);
+	} catch (e) {
+		if (e instanceof ModelUnavailableError) throw new ChatRequestError(400, e.message);
+		throw e;
+	}
+
+	const controller = new AbortController();
+	registerStream(conversation.id, controller);
+
+	let errorText: string | null = null;
+	const result = streamText({
+		model,
+		system: buildSystemPrompt(conversation),
+		messages: await convertToModelMessages(inlineAttachmentParts(db, conversation.id, body.messages)),
+		stopWhen: stepCountIs(
+			conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
+		),
+		abortSignal: controller.signal,
+		...(conversation.temperature != null ? { temperature: conversation.temperature } : {}),
+		...(conversation.max_tokens != null ? { maxOutputTokens: conversation.max_tokens } : {}),
+		onError: ({ error }) => {
+			errorText = error instanceof Error ? error.message : String(error);
+		}
+	});
+
+	return result.toUIMessageStreamResponse({
+		onError: () => errorText ?? 'An error occurred while generating the response',
+		onEnd: async ({ responseMessage, isAborted }) => {
+			try {
+				const status = isAborted ? 'partial' : errorText ? 'failed' : 'complete';
+				if (responseMessage.parts.length > 0 || status !== 'failed') {
+					createMessage(db, {
+						id: responseMessage.id,
+						conversationId: conversation.id,
+						role: 'assistant',
+						parts: responseMessage.parts,
+						status,
+						error: errorText
+					});
+				}
+				if (conversation.title === '') {
+					const assistantText = extractText(responseMessage.parts);
+					const userText = extractText(lastUserMessage.parts);
+					generateConversationTitle(conversation.id, ref, userText, assistantText).catch(
+						() => undefined
+					);
+				}
+			} finally {
+				releaseStream(conversation.id, controller);
+			}
+		}
+	});
+}

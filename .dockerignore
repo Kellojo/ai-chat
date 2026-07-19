@@ -1,0 +1,13 @@
+node_modules
+.svelte-kit
+build
+.git
+.vscode
+playwright-report
+test-results
+*.md
+.env
+data
+memory
+documents
+workspaces

@@ -1,0 +1,150 @@
+import { randomUUID } from 'node:crypto';
+import type { Db } from '../index.js';
+
+export type ModelRole = 'chat' | 'memory' | 'research';
+
+export interface ModelRow {
+	id: string;
+	provider_id: string;
+	model_id: string;
+	display_name: string;
+	capabilities: string;
+	enabled: number;
+	is_default_for: string | null;
+}
+
+export interface ChatModel {
+	id: string;
+	providerId: string;
+	modelId: string;
+	displayName: string;
+	capabilities: string[];
+	enabled: boolean;
+	isDefaultFor: ModelRole | null;
+}
+
+export function toPublic(row: ModelRow): ChatModel {
+	return {
+		id: row.id,
+		providerId: row.provider_id,
+		modelId: row.model_id,
+		displayName: row.display_name,
+		capabilities: JSON.parse(row.capabilities) as string[],
+		enabled: row.enabled === 1,
+		isDefaultFor: (row.is_default_for as ModelRole | null) ?? null
+	};
+}
+
+export function listModels(db: Db, providerId?: string): ModelRow[] {
+	if (providerId) {
+		return db
+			.prepare('SELECT * FROM models WHERE provider_id = ? ORDER BY model_id')
+			.all(providerId) as ModelRow[];
+	}
+	return db.prepare('SELECT * FROM models ORDER BY provider_id, model_id').all() as ModelRow[];
+}
+
+export function listEnabledModels(db: Db): ModelRow[] {
+	return db
+		.prepare(
+			`SELECT m.* FROM models m
+			 JOIN providers p ON p.id = m.provider_id
+			 WHERE m.enabled = 1 AND p.enabled = 1
+			 ORDER BY p.name, m.model_id`
+		)
+		.all() as ModelRow[];
+}
+
+export function getModel(db: Db, id: string): ModelRow | undefined {
+	return db.prepare('SELECT * FROM models WHERE id = ?').get(id) as ModelRow | undefined;
+}
+
+export function findModel(db: Db, providerId: string, modelId: string): ModelRow | undefined {
+	return db
+		.prepare('SELECT * FROM models WHERE provider_id = ? AND model_id = ?')
+		.get(providerId, modelId) as ModelRow | undefined;
+}
+
+export interface CreateModelInput {
+	providerId: string;
+	modelId: string;
+	displayName?: string;
+	capabilities?: string[];
+	enabled?: boolean;
+}
+
+export function createModel(db: Db, input: CreateModelInput): ModelRow {
+	const id = randomUUID();
+	db.prepare(
+		'INSERT INTO models (id, provider_id, model_id, display_name, capabilities, enabled) VALUES (?, ?, ?, ?, ?, ?)'
+	).run(
+		id,
+		input.providerId,
+		input.modelId,
+		input.displayName ?? input.modelId,
+		JSON.stringify(input.capabilities ?? ['chat', 'streaming']),
+		input.enabled === false ? 0 : 1
+	);
+	return getModel(db, id)!;
+}
+
+export interface UpdateModelInput {
+	displayName?: string;
+	capabilities?: string[];
+	enabled?: boolean;
+}
+
+export function updateModel(db: Db, id: string, patch: UpdateModelInput): ModelRow | undefined {
+	const existing = getModel(db, id);
+	if (!existing) return undefined;
+	db.prepare('UPDATE models SET display_name = ?, capabilities = ?, enabled = ? WHERE id = ?').run(
+		patch.displayName ?? existing.display_name,
+		patch.capabilities !== undefined ? JSON.stringify(patch.capabilities) : existing.capabilities,
+		patch.enabled !== undefined ? (patch.enabled ? 1 : 0) : existing.enabled,
+		id
+	);
+	return getModel(db, id);
+}
+
+export function deleteModel(db: Db, id: string): boolean {
+	return db.prepare('DELETE FROM models WHERE id = ?').run(id).changes > 0;
+}
+
+export function setModelRole(db: Db, id: string, role: ModelRole | null): ModelRow | undefined {
+	const existing = getModel(db, id);
+	if (!existing) return undefined;
+	db.transaction(() => {
+		if (role) {
+			db.prepare('UPDATE models SET is_default_for = NULL WHERE is_default_for = ?').run(role);
+		}
+		db.prepare('UPDATE models SET is_default_for = ? WHERE id = ?').run(role, id);
+	})();
+	return getModel(db, id);
+}
+
+export function findRoleModel(db: Db, role: ModelRole): ModelRow | undefined {
+	return db
+		.prepare(
+			`SELECT m.* FROM models m
+			 JOIN providers p ON p.id = m.provider_id
+			 WHERE m.is_default_for = ? AND m.enabled = 1 AND p.enabled = 1`
+		)
+		.get(role) as ModelRow | undefined;
+}
+
+export function upsertFetchedModels(
+	db: Db,
+	providerId: string,
+	modelIds: string[]
+): { added: number; total: number } {
+	let added = 0;
+	db.transaction(() => {
+		for (const modelId of modelIds) {
+			if (!findModel(db, providerId, modelId)) {
+				createModel(db, { providerId, modelId });
+				added++;
+			}
+		}
+	})();
+	return { added, total: modelIds.length };
+}
