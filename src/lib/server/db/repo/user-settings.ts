@@ -1,0 +1,45 @@
+import type { Db } from '../index.js';
+import {
+	DEFAULT_USER_SETTINGS,
+	THEMES,
+	type Theme,
+	type UserSettings
+} from '$lib/user-settings.js';
+
+interface UserSettingRow {
+	key: string;
+	value: string;
+}
+
+export function getUserSetting<T>(db: Db, userId: string, key: string): T | undefined {
+	const row = db
+		.prepare('SELECT value FROM user_settings WHERE user_id = ? AND key = ?')
+		.get(userId, key) as Pick<UserSettingRow, 'value'> | undefined;
+	if (!row) return undefined;
+	return JSON.parse(row.value) as T;
+}
+
+export function setUserSetting(db: Db, userId: string, key: string, value: unknown): void {
+	db.prepare(
+		`INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+		 ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value`
+	).run(userId, key, JSON.stringify(value));
+}
+
+export function getTheme(db: Db, userId: string): Theme {
+	const theme = getUserSetting<string>(db, userId, 'theme');
+	return THEMES.includes(theme as Theme) ? (theme as Theme) : DEFAULT_USER_SETTINGS.theme;
+}
+
+export function getSuggestions(db: Db, userId: string): string[] {
+	const suggestions = getUserSetting<string[]>(db, userId, 'suggestions');
+	if (!Array.isArray(suggestions)) return DEFAULT_USER_SETTINGS.suggestions;
+	return suggestions.filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
+}
+
+export function getUserSettings(db: Db, userId: string): UserSettings {
+	return {
+		theme: getTheme(db, userId),
+		suggestions: getSuggestions(db, userId)
+	};
+}

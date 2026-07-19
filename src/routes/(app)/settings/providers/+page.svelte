@@ -164,9 +164,14 @@
 		<Table.Body>
 			{#each data.providers as provider (provider.id)}
 				<Table.Row>
-					<Table.Cell class="font-medium">{provider.name}</Table.Cell>
+					<Table.Cell class="max-w-40 truncate font-medium" title={provider.name}>
+						{provider.name}
+					</Table.Cell>
 					<Table.Cell><Badge variant="outline">{typeLabels[provider.type]}</Badge></Table.Cell>
-					<Table.Cell class="max-w-48 truncate text-muted-foreground">
+					<Table.Cell
+						class="max-w-40 truncate text-muted-foreground"
+						title={provider.baseUrl ?? ''}
+					>
 						{provider.baseUrl ?? '—'}
 					</Table.Cell>
 					<Table.Cell>{provider.hasApiKey ? '••••••' : '—'}</Table.Cell>
@@ -176,7 +181,7 @@
 							onCheckedChange={(checked) => toggleEnabled(provider.id, checked)}
 						/>
 					</Table.Cell>
-					<Table.Cell class="text-right">
+					<Table.Cell class="text-right whitespace-nowrap">
 						<div class="flex justify-end gap-2">
 							<Button
 								variant="outline"

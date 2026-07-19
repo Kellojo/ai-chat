@@ -16,7 +16,7 @@
 			onclose={() => (sidebarOpen = false)}
 		/>
 	{/if}
-	<main class="relative flex min-w-0 flex-1 flex-col">
+	<main class="relative flex min-w-0 flex-1 flex-col {sidebarOpen ? '' : 'pl-12'}">
 		{#if !sidebarOpen}
 			<button
 				class="absolute top-2 left-2 z-10 rounded-md border bg-background p-1.5 text-muted-foreground hover:text-foreground"

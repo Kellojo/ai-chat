@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -8,6 +7,7 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import SettingsIcon from '@lucide/svelte/icons/settings-2';
+	import ModelPicker from './ModelPicker.svelte';
 	import type { Conversation, ModelsByProvider } from '$lib/types.js';
 
 	let {
@@ -28,16 +28,6 @@
 			? `${conversation.providerId}/${conversation.modelId}`
 			: ''
 	);
-	const currentModelLabel = $derived.by(() => {
-		for (const g of groups) {
-			for (const m of g.models) {
-				if (m.providerId === conversation.providerId && m.modelId === conversation.modelId) {
-					return `${m.displayName} (${g.provider.name})`;
-				}
-			}
-		}
-		return conversation.modelId ?? 'Select model';
-	});
 
 	async function patch(body: Record<string, unknown>) {
 		saving = true;
@@ -67,23 +57,7 @@
 </script>
 
 <header class="flex items-center gap-3 border-b px-4 py-2">
-	<Select.Root type="single" value={currentModelValue} onValueChange={selectModel}>
-		<Select.Trigger class="w-64" disabled={saving}>{currentModelLabel}</Select.Trigger>
-		<Select.Content>
-			{#each groups as group (group.provider.id)}
-				{#if group.models.length > 0}
-					<Select.Group>
-						<Select.Label>{group.provider.name}</Select.Label>
-						{#each group.models as model (model.id)}
-							<Select.Item value={`${model.providerId}/${model.modelId}`}>
-								{model.displayName}
-							</Select.Item>
-						{/each}
-					</Select.Group>
-				{/if}
-			{/each}
-		</Select.Content>
-	</Select.Root>
+	<ModelPicker {groups} value={currentModelValue} onselect={selectModel} disabled={saving} />
 
 	<div class="ml-auto flex items-center gap-3">
 		<Label class="flex items-center gap-2 text-sm text-muted-foreground">

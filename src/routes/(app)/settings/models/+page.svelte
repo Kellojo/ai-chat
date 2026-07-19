@@ -158,9 +158,13 @@
 					<Table.Body>
 						{#each models as model (model.id)}
 							<Table.Row>
-								<Table.Cell class="font-medium">{model.displayName}</Table.Cell>
-								<Table.Cell class="text-muted-foreground">{model.modelId}</Table.Cell>
-								<Table.Cell>
+								<Table.Cell class="max-w-40 truncate font-medium" title={model.displayName}>
+									{model.displayName}
+								</Table.Cell>
+								<Table.Cell class="max-w-48 truncate text-muted-foreground" title={model.modelId}>
+									{model.modelId}
+								</Table.Cell>
+								<Table.Cell class="whitespace-normal">
 									<div class="flex flex-wrap gap-1">
 										{#each model.capabilities as cap (cap)}
 											<Badge variant="secondary">{cap}</Badge>
@@ -174,7 +178,7 @@
 											patch(model.id, { enabled: checked }, 'Model updated')}
 									/>
 								</Table.Cell>
-								<Table.Cell class="text-right">
+								<Table.Cell class="text-right whitespace-nowrap">
 									<div class="flex justify-end gap-2">
 										<Button variant="outline" size="sm" onclick={() => openCaps(model)}>
 											Capabilities

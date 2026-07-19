@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
@@ -19,7 +20,7 @@
 		conversations,
 		onclose
 	}: {
-		user: { name: string; email: string; role: string };
+		user: { name: string; email: string };
 		conversations: Conversation[];
 		onclose: () => void;
 	} = $props();
@@ -119,7 +120,10 @@
 	}
 </script>
 
-<aside class="flex w-72 shrink-0 flex-col border-r bg-muted/30">
+<aside
+	transition:fly|local={{ x: -300, duration: 200 }}
+	class="flex w-72 shrink-0 flex-col border-r bg-muted/30"
+>
 	<div class="flex items-center justify-between gap-2 p-3">
 		<span class="px-1 text-sm font-semibold">AI Chat</span>
 		<div class="flex gap-1">
@@ -193,9 +197,7 @@
 	<div class="flex items-center justify-between gap-2 border-t p-3">
 		<span class="min-w-0 truncate text-sm" title={user.email}>{user.name}</span>
 		<div class="flex shrink-0 gap-1">
-			{#if user.role === 'admin'}
-				<Button variant="ghost" size="sm" href={resolve('/settings')}>Settings</Button>
-			{/if}
+			<Button variant="ghost" size="sm" href={resolve('/settings')}>Settings</Button>
 			<Button variant="ghost" size="sm" onclick={signOut}>Sign out</Button>
 		</div>
 	</div>

@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { Markdown } from '$lib/components/ai/markdown/index.js';
 	import { Message, MessageActions, MessageContent } from '$lib/components/ai/message/index.js';
-	import {
-		Reasoning,
-		ReasoningTrigger,
-		ReasoningContent
-	} from '$lib/components/ai/reasoning/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import FileIcon from '@lucide/svelte/icons/file';
+	import BrainIcon from '@lucide/svelte/icons/brain';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import type { UIMessage } from '$lib/types.js';
 
 	let {
@@ -27,6 +25,13 @@
 	} = $props();
 
 	type Part = UIMessage['parts'][number];
+
+	const openReasoning = new SvelteSet<string>();
+
+	function toggleReasoning(key: string) {
+		if (openReasoning.has(key)) openReasoning.delete(key);
+		else openReasoning.add(key);
+	}
 
 	function messageText(message: UIMessage): string {
 		return message.parts
@@ -66,14 +71,35 @@
 						<Markdown class="w-full max-w-none" content={part.text} />
 					{/if}
 				{:else if part.type === 'reasoning'}
-					<Reasoning
-						isStreaming={streaming &&
-							isLastAssistant(index) &&
-							partIndex === message.parts.length - 1}
-					>
-						<ReasoningTrigger>Reasoning</ReasoningTrigger>
-						<ReasoningContent content={part.text} />
-					</Reasoning>
+					{@const key = `${message.id}:${partIndex}`}
+					{@const reasoningStreaming =
+						streaming && isLastAssistant(index) && partIndex === message.parts.length - 1}
+					{@const open = openReasoning.has(key)}
+					<div class="w-full">
+						<button
+							type="button"
+							class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+							aria-expanded={open}
+							onclick={() => toggleReasoning(key)}
+						>
+							{#if reasoningStreaming}
+								<span class="reasoning-pulse flex"><BrainIcon class="size-4" /></span>
+								<span>Reasoning…</span>
+							{:else}
+								<BrainIcon class="size-4" />
+								<span>Reasoning</span>
+							{/if}
+							<ChevronDownIcon class="size-4 transition-transform {open ? 'rotate-180' : ''}" />
+						</button>
+						{#if open}
+							<div class="mt-2 border-l-2 border-border pl-3">
+								<Markdown
+									class="w-full max-w-none text-sm text-muted-foreground"
+									content={part.text}
+								/>
+							</div>
+						{/if}
+					</div>
 				{:else if part.type === 'file'}
 					{@const url = fileUrl(part)}
 					{#if part.mediaType?.startsWith('image/')}
@@ -133,3 +159,19 @@
 		</Message>
 	{/each}
 </div>
+
+<style>
+	.reasoning-pulse {
+		animation: reasoning-pulse 1.4s ease-in-out infinite;
+	}
+
+	@keyframes reasoning-pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.35;
+		}
+	}
+</style>

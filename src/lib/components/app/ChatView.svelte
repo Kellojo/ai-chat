@@ -4,7 +4,6 @@
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { ChatContainer, ChatContainerContent } from '$lib/components/ai/chat-container/index.js';
-	import { Loader } from '$lib/components/ai/loader/index.js';
 	import {
 		PromptInput,
 		PromptInputTextarea,
@@ -149,7 +148,11 @@
 		/>
 		{#if waiting}
 			<div class="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-4 text-muted-foreground">
-				<Loader variant="typing" size="sm" />
+				<span class="thinking-dots" aria-hidden="true">
+					<span class="thinking-dot"></span>
+					<span class="thinking-dot"></span>
+					<span class="thinking-dot"></span>
+				</span>
 				<span class="text-sm">Thinking…</span>
 			</div>
 		{/if}
@@ -196,3 +199,39 @@
 	</PromptInput>
 	<input bind:this={fileInput} type="file" multiple class="hidden" onchange={filesChosen} />
 </div>
+
+<style>
+	.thinking-dots {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+
+	.thinking-dot {
+		width: 5px;
+		height: 5px;
+		border-radius: 9999px;
+		background-color: currentColor;
+		animation: thinking-bounce 1.2s ease-in-out infinite;
+	}
+
+	.thinking-dot:nth-child(2) {
+		animation-delay: 0.15s;
+	}
+
+	.thinking-dot:nth-child(3) {
+		animation-delay: 0.3s;
+	}
+
+	@keyframes thinking-bounce {
+		0%,
+		100% {
+			transform: translateY(0);
+			opacity: 0.4;
+		}
+		50% {
+			transform: translateY(-3px);
+			opacity: 1;
+		}
+	}
+</style>

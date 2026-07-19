@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 'ai';
 import { config } from '../config.js';
 import { getDb, type Db } from '../db/index.js';
@@ -151,6 +152,8 @@ export async function handleChatRequest(
 
 	return result.toUIMessageStreamResponse({
 		onError: () => errorText ?? 'An error occurred while generating the response',
+		generateMessageId: () => randomUUID(),
+		originalMessages: body.messages,
 		onEnd: async ({ responseMessage, isAborted }) => {
 			try {
 				const status = isAborted ? 'partial' : errorText ? 'failed' : 'complete';
@@ -171,6 +174,8 @@ export async function handleChatRequest(
 						() => undefined
 					);
 				}
+			} catch (e) {
+				console.error('Failed to persist assistant message', e);
 			} finally {
 				releaseStream(conversation.id, controller);
 			}
