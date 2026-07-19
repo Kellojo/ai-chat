@@ -9,10 +9,13 @@
 	} from '$lib/components/ai/prompt-input/index.js';
 	import { PromptSuggestion } from '$lib/components/ai/prompt-suggestion/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import XIcon from '@lucide/svelte/icons/x';
 	import ModelPicker from '$lib/components/app/ModelPicker.svelte';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
+	import { createFileDrop } from '$lib/state/file-drop.svelte.js';
 	import { DEFAULT_SUGGESTIONS } from '$lib/user-settings.js';
 	import type { Conversation } from '$lib/types.js';
 	import type { PageData } from './$types';
@@ -23,6 +26,11 @@
 	let busy = $state(false);
 	let picked = $state('');
 	let personaId = $state('');
+	let selectedFiles = $state<File[]>([]);
+
+	const fileDrop = createFileDrop((files) => {
+		selectedFiles = [...selectedFiles, ...files];
+	});
 
 	const defaultModelValue = $derived(
 		data.defaultModel ? `${data.defaultModel.providerId}/${data.defaultModel.modelId}` : ''
@@ -30,7 +38,9 @@
 	const selectedValue = $derived(picked || defaultModelValue);
 	const hasModels = $derived(data.groups.some((g) => g.models.length > 0));
 	const modelMissing = $derived(!hasModels || selectedValue === '');
-	const canSend = $derived(input.trim().length > 0 && !busy && !modelMissing);
+	const canSend = $derived(
+		(input.trim().length > 0 || selectedFiles.length > 0) && !busy && !modelMissing
+	);
 	const suggestions = $derived(
 		data.suggestions.length > 0 ? data.suggestions : DEFAULT_SUGGESTIONS
 	);
@@ -40,7 +50,7 @@
 
 	async function startChat(text: string) {
 		const trimmed = text.trim();
-		if (!trimmed || busy || modelMissing) return;
+		if ((!trimmed && selectedFiles.length === 0) || busy || modelMissing) return;
 		busy = true;
 		try {
 			const body: Record<string, string> = {};
@@ -57,7 +67,7 @@
 			});
 			if (!res.ok) throw new Error('Failed to create conversation');
 			const { conversation } = (await res.json()) as { conversation: Conversation };
-			pendingMessage.set(trimmed);
+			pendingMessage.set(trimmed, selectedFiles);
 			await invalidateAll();
 			goto(resolve(`/chat/${conversation.id}`));
 		} catch (e) {
@@ -67,7 +77,22 @@
 	}
 </script>
 
-<div class="flex flex-1 flex-col items-center justify-center gap-8 p-6">
+<div
+	class="relative flex flex-1 flex-col items-center justify-center gap-8 p-6"
+	role="region"
+	aria-label="New chat"
+	ondragenter={fileDrop.ondragenter}
+	ondragover={fileDrop.ondragover}
+	ondragleave={fileDrop.ondragleave}
+	ondrop={fileDrop.ondrop}
+>
+	{#if fileDrop.dragActive}
+		<div
+			class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-blue-500 bg-background/70"
+		>
+			<span class="text-sm font-medium text-muted-foreground">Drop files to attach</span>
+		</div>
+	{/if}
 	{#if data.personas.length > 0}
 		<h1 class="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-semibold">
 			What can
@@ -90,6 +115,21 @@
 		<h1 class="text-2xl font-semibold">What can I help you with?</h1>
 	{/if}
 	<div class="w-full max-w-2xl">
+		{#if selectedFiles.length > 0}
+			<div class="mb-2 flex flex-wrap gap-2">
+				{#each selectedFiles as file, i (file.name + i)}
+					<Badge variant="secondary" class="flex items-center gap-1">
+						{file.name}
+						<button
+							aria-label="Remove {file.name}"
+							onclick={() => (selectedFiles = selectedFiles.filter((_, j) => j !== i))}
+						>
+							<XIcon class="size-3" />
+						</button>
+					</Badge>
+				{/each}
+			</div>
+		{/if}
 		<PromptInput value={input} onValueChange={(v) => (input = v)} onSubmit={() => startChat(input)}>
 			<PromptInputTextarea placeholder="Ask anything…" />
 			<PromptInputActions class="justify-between">

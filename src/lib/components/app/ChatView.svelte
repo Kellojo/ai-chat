@@ -21,6 +21,7 @@
 	import MessageTimeline from './MessageTimeline.svelte';
 	import { activeChats } from '$lib/state/active-chats.svelte.js';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
+	import { createFileDrop } from '$lib/state/file-drop.svelte.js';
 	import {
 		chatMessageToUIMessage,
 		type Agent,
@@ -123,7 +124,9 @@
 
 	$effect(() => {
 		const pending = pendingMessage.consume();
-		if (pending) send(pending);
+		if (!pending) return;
+		if (pending.files.length > 0) selectedFiles = [...selectedFiles, ...pending.files];
+		send(pending.text);
 	});
 
 	$effect(() => {
@@ -226,6 +229,10 @@
 		input = text;
 	}
 
+	const fileDrop = createFileDrop((files) => {
+		selectedFiles = [...selectedFiles, ...files];
+	});
+
 	function pickFiles() {
 		fileInput?.click();
 	}
@@ -237,77 +244,96 @@
 	}
 </script>
 
-<ChatTopbar
-	{conversation}
-	{groups}
-	{defaultModel}
-	{personas}
-	personaLocked={chat.messages.length > 0}
-	onupdated={(updated) => (conversation = updated)}
-/>
-
-<ChatContainer class="min-h-0 flex-1">
-	<ChatContainerContent>
-		<MessageTimeline
-			messages={chat.messages}
-			{streaming}
-			{timeFormat}
-			{messageTimes}
-			onregenerate={regenerate}
-			onedit={startEdit}
-		/>
-		{#if waiting}
-			<div class="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-4 text-muted-foreground">
-				<span class="thinking-dots" aria-hidden="true">
-					<span class="thinking-dot"></span>
-					<span class="thinking-dot"></span>
-					<span class="thinking-dot"></span>
-				</span>
-				<span class="text-sm">Thinking…</span>
-			</div>
-		{/if}
-	</ChatContainerContent>
-</ChatContainer>
-
-<div class="mx-auto w-full max-w-3xl px-4 pb-4">
-	{#if selectedFiles.length > 0}
-		<div class="mb-2 flex flex-wrap gap-2">
-			{#each selectedFiles as file, i (file.name + i)}
-				<Badge variant="secondary" class="flex items-center gap-1">
-					{file.name}
-					<button
-						aria-label="Remove {file.name}"
-						onclick={() => (selectedFiles = selectedFiles.filter((_, j) => j !== i))}
-					>
-						<XIcon class="size-3" />
-					</button>
-				</Badge>
-			{/each}
+<div
+	class="relative flex h-full min-h-0 flex-1 flex-col"
+	role="region"
+	aria-label="Chat"
+	ondragenter={fileDrop.ondragenter}
+	ondragover={fileDrop.ondragover}
+	ondragleave={fileDrop.ondragleave}
+	ondrop={fileDrop.ondrop}
+>
+	{#if fileDrop.dragActive}
+		<div
+			class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-blue-500 bg-background/70"
+		>
+			<span class="text-sm font-medium text-muted-foreground">Drop files to attach</span>
 		</div>
 	{/if}
-	<PromptInput
-		value={input}
-		onValueChange={(v) => (input = v)}
-		isLoading={streaming}
-		onSubmit={() => send(input)}
-	>
-		<PromptInputTextarea placeholder="Ask anything…" />
-		<PromptInputActions class="justify-between">
-			<Button variant="ghost" size="icon" aria-label="Attach files" onclick={pickFiles}>
-				<PaperclipIcon class="size-4" />
-			</Button>
-			{#if streaming}
-				<Button size="sm" variant="destructive" aria-label="Stop" onclick={stop}>
-					<SquareIcon class="size-4" />
-				</Button>
-			{:else}
-				<Button size="sm" disabled={!canSend} aria-label="Send" onclick={() => send(input)}>
-					<ArrowUpIcon class="size-4" />
-				</Button>
+
+	<ChatTopbar
+		{conversation}
+		{groups}
+		{defaultModel}
+		{personas}
+		onupdated={(updated) => (conversation = updated)}
+	/>
+
+	<ChatContainer class="min-h-0 flex-1">
+		<ChatContainerContent>
+			<MessageTimeline
+				messages={chat.messages}
+				{streaming}
+				{timeFormat}
+				{messageTimes}
+				onregenerate={regenerate}
+				onedit={startEdit}
+			/>
+			{#if waiting}
+				<div
+					class="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-4 text-muted-foreground"
+				>
+					<span class="thinking-dots" aria-hidden="true">
+						<span class="thinking-dot"></span>
+						<span class="thinking-dot"></span>
+						<span class="thinking-dot"></span>
+					</span>
+					<span class="text-sm">Thinking…</span>
+				</div>
 			{/if}
-		</PromptInputActions>
-	</PromptInput>
-	<input bind:this={fileInput} type="file" multiple class="hidden" onchange={filesChosen} />
+		</ChatContainerContent>
+	</ChatContainer>
+
+	<div class="mx-auto w-full max-w-3xl px-4 pb-4">
+		{#if selectedFiles.length > 0}
+			<div class="mb-2 flex flex-wrap gap-2">
+				{#each selectedFiles as file, i (file.name + i)}
+					<Badge variant="secondary" class="flex items-center gap-1">
+						{file.name}
+						<button
+							aria-label="Remove {file.name}"
+							onclick={() => (selectedFiles = selectedFiles.filter((_, j) => j !== i))}
+						>
+							<XIcon class="size-3" />
+						</button>
+					</Badge>
+				{/each}
+			</div>
+		{/if}
+		<PromptInput
+			value={input}
+			onValueChange={(v) => (input = v)}
+			isLoading={streaming}
+			onSubmit={() => send(input)}
+		>
+			<PromptInputTextarea placeholder="Ask anything…" />
+			<PromptInputActions class="justify-between">
+				<Button variant="ghost" size="icon" aria-label="Attach files" onclick={pickFiles}>
+					<PaperclipIcon class="size-4" />
+				</Button>
+				{#if streaming}
+					<Button size="sm" variant="destructive" aria-label="Stop" onclick={stop}>
+						<SquareIcon class="size-4" />
+					</Button>
+				{:else}
+					<Button size="sm" disabled={!canSend} aria-label="Send" onclick={() => send(input)}>
+						<ArrowUpIcon class="size-4" />
+					</Button>
+				{/if}
+			</PromptInputActions>
+		</PromptInput>
+		<input bind:this={fileInput} type="file" multiple class="hidden" onchange={filesChosen} />
+	</div>
 </div>
 
 <style>

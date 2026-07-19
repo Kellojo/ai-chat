@@ -1,12 +1,16 @@
 class PendingMessage {
 	text = $state('');
-	set(text: string) {
+	files = $state<File[]>([]);
+	set(text: string, files: File[] = []) {
 		this.text = text;
+		this.files = files;
 	}
-	consume(): string {
-		const text = this.text;
+	consume(): { text: string; files: File[] } | null {
+		if (!this.text && this.files.length === 0) return null;
+		const pending = { text: this.text, files: this.files };
 		this.text = '';
-		return text;
+		this.files = [];
+		return pending;
 	}
 }
 
