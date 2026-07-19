@@ -32,7 +32,7 @@ vi.mock('../llm/registry.js', async () => {
 
 const { getDb, closeDb } = await import('../db/index.js');
 const { handleChatRequest } = await import('./service.js');
-const { createConversation } = await import('../db/repo/conversations.js');
+const { createConversation, getConversation } = await import('../db/repo/conversations.js');
 const { listMessages } = await import('../db/repo/messages.js');
 
 type Db = ReturnType<typeof getDb>;
@@ -103,6 +103,52 @@ describe('handleChatRequest', () => {
 		expect(messages).toHaveLength(4);
 		const assistants = messages.filter((m) => m.role === 'assistant');
 		expect(new Set(assistants.map((m) => m.id)).size).toBe(2);
+		closeDb();
+	});
+
+	it('sets a provisional title from the first user message when empty', async () => {
+		const db = getDb();
+		db.prepare(
+			"INSERT INTO \"user\" (id, name, email, emailVerified, createdAt, updatedAt, role) VALUES ('u1', 'A', 'a@b.c', 0, 0, 0, 'user')"
+		).run();
+		const conversation = createConversation(db, 'u1', { providerId: 'p1', modelId: 'm1' });
+
+		expect(getConversation(db, 'u1', conversation.id)!.title).toBe('');
+
+		const res = await handleChatRequest('u1', {
+			conversationId: conversation.id,
+			messages: [{ id: 'msg-1', role: 'user', parts: [{ type: 'text', text: 'hello world' }] }]
+		});
+		expect(res.status).toBe(200);
+		await res.text();
+		await new Promise((r) => setTimeout(r, 50));
+
+		const title = getConversation(db, 'u1', conversation.id)!.title;
+		expect(title).toBeTruthy();
+		expect(title).not.toBe('');
+		closeDb();
+	});
+
+	it('truncates long first messages at a word boundary and appends ellipsis', async () => {
+		const db = getDb();
+		db.prepare(
+			"INSERT INTO \"user\" (id, name, email, emailVerified, createdAt, updatedAt, role) VALUES ('u1', 'A', 'a@b.c', 0, 0, 0, 'user')"
+		).run();
+		const conversation = createConversation(db, 'u1', { providerId: 'p1', modelId: 'm1' });
+
+		const longPrompt = Array.from({ length: 20 }, (_, i) => `word${i + 1}`).join(' ');
+
+		const res = await handleChatRequest('u1', {
+			conversationId: conversation.id,
+			messages: [{ id: 'msg-1', role: 'user', parts: [{ type: 'text', text: longPrompt }] }]
+		});
+		expect(res.status).toBe(200);
+		await res.text();
+		await new Promise((r) => setTimeout(r, 50));
+
+		const title = getConversation(db, 'u1', conversation.id)!.title;
+		expect(title.endsWith('\u2026')).toBe(true);
+		expect(title.split(' ').pop()).not.toBe('\u2026');
 		closeDb();
 	});
 });

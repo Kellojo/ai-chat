@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import type { ModelsByProvider } from '$lib/types.js';
 
@@ -16,20 +17,34 @@
 		placeholder?: string;
 	} = $props();
 
+	let selectedValue = $state(untrack(() => value));
+
+	$effect(() => {
+		const current = untrack(() => value);
+		if (selectedValue !== current) {
+			selectedValue = current;
+		}
+	});
+
 	const label = $derived.by(() => {
 		for (const group of groups) {
 			for (const model of group.models) {
-				if (`${model.providerId}/${model.modelId}` === value) {
+				if (`${model.providerId}/${model.modelId}` === selectedValue) {
 					return `${model.displayName} (${group.provider.name})`;
 				}
 			}
 		}
-		if (value) return value.split('/').slice(1).join('/') || value;
+		if (selectedValue) return selectedValue.split('/').slice(1).join('/') || selectedValue;
 		return placeholder;
 	});
+
+	function onSelect(v: string) {
+		selectedValue = v;
+		onselect(v);
+	}
 </script>
 
-<Select.Root type="single" {value} onValueChange={onselect}>
+<Select.Root type="single" bind:value={selectedValue as never} onValueChange={onSelect}>
 	<Select.Trigger class="w-64" {disabled} title={label}>
 		<span class="min-w-0 flex-1 truncate text-left">{label}</span>
 	</Select.Trigger>

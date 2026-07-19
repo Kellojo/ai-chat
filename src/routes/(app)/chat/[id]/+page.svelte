@@ -6,5 +6,10 @@
 </script>
 
 {#key data.conversation.id}
-	<ChatView conversation={data.conversation} initialMessages={data.messages} groups={data.groups} />
+	<ChatView
+		conversation={data.conversation}
+		initialMessages={data.messages}
+		groups={data.groups}
+		defaultModel={data.defaultModel}
+	/>
 {/key}

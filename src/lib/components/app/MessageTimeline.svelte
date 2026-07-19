@@ -92,7 +92,7 @@
 							<ChevronDownIcon class="size-4 transition-transform {open ? 'rotate-180' : ''}" />
 						</button>
 						{#if open}
-							<div class="mt-2 border-l-2 border-border pl-3">
+							<div class="reasoning-body mt-2 border-l-2 border-border pl-3">
 								<Markdown
 									class="w-full max-w-none text-sm text-muted-foreground"
 									content={part.text}
@@ -173,5 +173,16 @@
 		50% {
 			opacity: 0.35;
 		}
+	}
+
+	:global(.reasoning-body ul),
+	:global(.reasoning-body ol) {
+		padding-left: 1.25rem;
+		margin-top: 0.25em;
+		margin-bottom: 0.25em;
+	}
+
+	:global(.reasoning-body li) {
+		line-height: 1.6;
 	}
 </style>

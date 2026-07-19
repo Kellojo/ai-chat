@@ -126,7 +126,7 @@ export function updateConversation(
 	if (!existing) return undefined;
 	db.prepare(
 		`UPDATE conversations SET title = ?, mode = ?, provider_id = ?, model_id = ?,
-		 system_prompt = ?, memory_enabled = ?, max_steps = ?, temperature = ?, max_tokens = ?, updated_at = ?
+		 system_prompt = ?, memory_enabled = ?, max_steps = ?, temperature = ?, max_tokens = ?
 		 WHERE id = ?`
 	).run(
 		patch.title ?? existing.title,
@@ -138,7 +138,6 @@ export function updateConversation(
 		patch.maxSteps !== undefined ? patch.maxSteps : existing.max_steps,
 		patch.temperature !== undefined ? patch.temperature : existing.temperature,
 		patch.maxTokens !== undefined ? patch.maxTokens : existing.max_tokens,
-		Date.now(),
 		id
 	);
 	return getConversation(db, userId, id);

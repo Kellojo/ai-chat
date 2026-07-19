@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db/index.js';
+import { findRoleModel } from '$lib/server/db/repo/models.js';
 import {
 	getConversation,
 	toPublic as conversationToPublic
@@ -15,9 +16,13 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	const conversation = getConversation(db, user.id, params.id);
 	if (!conversation || conversation.kind !== 'chat')
 		error(404, { message: 'Conversation not found' });
+	const roleModel = findRoleModel(db, 'chat');
 	return {
 		conversation: conversationToPublic(conversation),
 		messages: listMessages(db, conversation.id).map(messageToPublic),
-		groups: listModelsGrouped()
+		groups: listModelsGrouped(),
+		defaultModel: roleModel
+			? { providerId: roleModel.provider_id, modelId: roleModel.model_id }
+			: null
 	};
 };

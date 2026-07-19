@@ -13,20 +13,25 @@
 	let {
 		conversation,
 		groups,
+		defaultModel,
 		onupdated
 	}: {
 		conversation: Conversation;
 		groups: ModelsByProvider[];
+		defaultModel?: { providerId: string; modelId: string } | null;
 		onupdated: (c: Conversation) => void;
 	} = $props();
 
 	let settingsOpen = $state(false);
 	let saving = $state(false);
 
+	const defaultModelValue = $derived(
+		defaultModel ? `${defaultModel.providerId}/${defaultModel.modelId}` : ''
+	);
 	const currentModelValue = $derived(
 		conversation.providerId && conversation.modelId
 			? `${conversation.providerId}/${conversation.modelId}`
-			: ''
+			: defaultModelValue
 	);
 
 	async function patch(body: Record<string, unknown>) {

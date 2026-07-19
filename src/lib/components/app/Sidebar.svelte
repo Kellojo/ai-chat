@@ -2,7 +2,6 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
@@ -120,10 +119,7 @@
 	}
 </script>
 
-<aside
-	transition:fly|local={{ x: -300, duration: 200 }}
-	class="flex w-72 shrink-0 flex-col border-r bg-muted/30"
->
+<aside class="flex h-full w-72 shrink-0 flex-col border-r bg-muted/30">
 	<div class="flex items-center justify-between gap-2 p-3">
 		<span class="px-1 text-sm font-semibold">AI Chat</span>
 		<div class="flex gap-1">

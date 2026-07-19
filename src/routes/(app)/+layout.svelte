@@ -9,14 +9,21 @@
 </script>
 
 <div class="flex h-screen overflow-hidden">
-	{#if sidebarOpen}
+	<div
+		class="h-full shrink-0 overflow-hidden transition-[width] duration-200"
+		style:width={sidebarOpen ? '288px' : '0px'}
+	>
 		<Sidebar
 			user={data.user}
 			conversations={data.conversations}
 			onclose={() => (sidebarOpen = false)}
 		/>
-	{/if}
-	<main class="relative flex min-w-0 flex-1 flex-col {sidebarOpen ? '' : 'pl-12'}">
+	</div>
+	<main
+		class="relative flex min-w-0 flex-1 flex-col transition-[padding] duration-200 {sidebarOpen
+			? ''
+			: 'pl-12'}"
+	>
 		{#if !sidebarOpen}
 			<button
 				class="absolute top-2 left-2 z-10 rounded-md border bg-background p-1.5 text-muted-foreground hover:text-foreground"

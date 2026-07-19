@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { getDb, type Db } from '../db/index.js';
 import {
 	getConversation,
+	setConversationTitle,
 	touchConversation,
 	updateConversation,
 	type ConversationRow
@@ -118,6 +119,17 @@ export async function handleChatRequest(
 
 	conversation = ensureModel(db, userId, conversation);
 	const lastUserMessage = syncMessages(db, conversation.id, body.messages);
+	if (conversation.title === '') {
+		const raw = extractText(lastUserMessage.parts).trim().replace(/\s+/g, ' ');
+		let provisional: string;
+		if (raw.length <= 50) {
+			provisional = raw;
+		} else {
+			const cut = raw.lastIndexOf(' ', 50);
+			provisional = (cut > 10 ? raw.slice(0, cut) : raw.slice(0, 50)) + '\u2026';
+		}
+		setConversationTitle(db, conversation.id, provisional);
+	}
 	touchConversation(db, conversation.id);
 
 	const ref = { providerId: conversation.provider_id!, modelId: conversation.model_id! };

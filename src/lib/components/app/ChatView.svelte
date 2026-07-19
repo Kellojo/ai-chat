@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
 	import { untrack } from 'svelte';
@@ -28,11 +29,13 @@
 	let {
 		conversation: initialConversation,
 		initialMessages,
-		groups
+		groups,
+		defaultModel
 	}: {
 		conversation: Conversation;
 		initialMessages: ChatMessage[];
 		groups: ModelsByProvider[];
+		defaultModel?: { providerId: string; modelId: string } | null;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -55,6 +58,8 @@
 		}
 	});
 
+	let prevStatus = $state<string>(chat.status);
+
 	const streaming = $derived(chat.status === 'streaming' || chat.status === 'submitted');
 	const waiting = $derived(chat.status === 'submitted');
 	const canSend = $derived((input.trim().length > 0 || selectedFiles.length > 0) && !streaming);
@@ -62,6 +67,14 @@
 	$effect(() => {
 		const pending = pendingMessage.consume();
 		if (pending) send(pending);
+	});
+
+	$effect(() => {
+		const current = chat.status;
+		if (prevStatus !== 'ready' && current === 'ready') {
+			invalidateAll();
+		}
+		prevStatus = current;
 	});
 
 	async function uploadFiles(): Promise<
@@ -136,7 +149,12 @@
 	}
 </script>
 
-<ChatTopbar {conversation} {groups} onupdated={(updated) => (conversation = updated)} />
+<ChatTopbar
+	{conversation}
+	{groups}
+	{defaultModel}
+	onupdated={(updated) => (conversation = updated)}
+/>
 
 <ChatContainer class="min-h-0 flex-1">
 	<ChatContainerContent>
