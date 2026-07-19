@@ -26,6 +26,10 @@ export function setUserSetting(db: Db, userId: string, key: string, value: unkno
 	).run(userId, key, JSON.stringify(value));
 }
 
+export function deleteUserSetting(db: Db, userId: string, key: string): void {
+	db.prepare('DELETE FROM user_settings WHERE user_id = ? AND key = ?').run(userId, key);
+}
+
 export function getTheme(db: Db, userId: string): Theme {
 	const theme = getUserSetting<string>(db, userId, 'theme');
 	return THEMES.includes(theme as Theme) ? (theme as Theme) : DEFAULT_USER_SETTINGS.theme;
@@ -37,9 +41,16 @@ export function getSuggestions(db: Db, userId: string): string[] {
 	return suggestions.filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
 }
 
+export function getGlobalInstructions(db: Db, userId: string): string {
+	const value = getUserSetting<string>(db, userId, 'globalInstructions');
+	if (typeof value !== 'string') return DEFAULT_USER_SETTINGS.globalInstructions;
+	return value.trim();
+}
+
 export function getUserSettings(db: Db, userId: string): UserSettings {
 	return {
 		theme: getTheme(db, userId),
-		suggestions: getSuggestions(db, userId)
+		suggestions: getSuggestions(db, userId),
+		globalInstructions: getGlobalInstructions(db, userId)
 	};
 }

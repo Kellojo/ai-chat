@@ -1,4 +1,0 @@
-- For a new chat, by default select the standard model, that is picked in the settings for chat usage (prefill it)
-- Remove the ::before in the reasoning markers
-
-- Make

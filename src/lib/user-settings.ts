@@ -11,12 +11,16 @@ export const DEFAULT_SUGGESTIONS = [
 
 export const MAX_SUGGESTIONS = 8;
 
+export const MAX_GLOBAL_INSTRUCTIONS_LENGTH = 2000;
+
 export interface UserSettings {
 	theme: Theme;
 	suggestions: string[];
+	globalInstructions: string;
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
 	theme: 'system',
-	suggestions: DEFAULT_SUGGESTIONS
+	suggestions: DEFAULT_SUGGESTIONS,
+	globalInstructions: ''
 };

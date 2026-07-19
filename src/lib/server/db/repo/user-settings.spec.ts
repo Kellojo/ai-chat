@@ -24,7 +24,8 @@ describe('user-settings repo', () => {
 	it('returns defaults when nothing is stored', () => {
 		expect(repo.getUserSettings(db, 'u1')).toEqual({
 			theme: 'system',
-			suggestions: repo.getSuggestions(db, 'u1')
+			suggestions: repo.getSuggestions(db, 'u1'),
+			globalInstructions: ''
 		});
 		expect(repo.getTheme(db, 'u1')).toBe('system');
 		expect(repo.getSuggestions(db, 'u1').length).toBeGreaterThan(0);
@@ -37,6 +38,20 @@ describe('user-settings repo', () => {
 		expect(repo.getSuggestions(db, 'u1')).toEqual(['one', 'two']);
 		seedUser(db, 'u2');
 		expect(repo.getTheme(db, 'u2')).toBe('system');
+	});
+
+	it('round-trips global instructions per user', () => {
+		repo.setUserSetting(db, 'u1', 'globalInstructions', 'no emojis');
+		expect(repo.getGlobalInstructions(db, 'u1')).toBe('no emojis');
+		seedUser(db, 'u2');
+		expect(repo.getGlobalInstructions(db, 'u2')).toBe('');
+	});
+
+	it('clears stored value via deleteUserSetting', () => {
+		repo.setUserSetting(db, 'u1', 'globalInstructions', 'answer concisely');
+		expect(repo.getGlobalInstructions(db, 'u1')).toBe('answer concisely');
+		repo.deleteUserSetting(db, 'u1', 'globalInstructions');
+		expect(repo.getGlobalInstructions(db, 'u1')).toBe('');
 	});
 
 	it('overwrites existing values', () => {
@@ -56,8 +71,14 @@ describe('user-settings repo', () => {
 			'suggestions',
 			JSON.stringify('not-an-array')
 		);
+		db.prepare('INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(
+			'u1',
+			'globalInstructions',
+			JSON.stringify(42)
+		);
 		expect(repo.getTheme(db, 'u1')).toBe('system');
 		expect(repo.getSuggestions(db, 'u1').length).toBeGreaterThan(0);
+		expect(repo.getGlobalInstructions(db, 'u1')).toBe('');
 	});
 
 	it('cascades on user delete', () => {

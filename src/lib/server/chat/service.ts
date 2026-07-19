@@ -19,6 +19,7 @@ import {
 } from '../db/repo/messages.js';
 import { getAttachment, linkAttachmentsToMessage } from '../db/repo/attachments.js';
 import { findRoleModel } from '../db/repo/models.js';
+import { getGlobalInstructions } from '../db/repo/user-settings.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
 import { resolveAttachment } from '../workspaces.js';
@@ -147,7 +148,7 @@ export async function handleChatRequest(
 	let errorText: string | null = null;
 	const result = streamText({
 		model,
-		system: buildSystemPrompt(conversation),
+		system: buildSystemPrompt(conversation, getGlobalInstructions(db, userId)),
 		messages: await convertToModelMessages(
 			inlineAttachmentParts(db, conversation.id, body.messages)
 		),

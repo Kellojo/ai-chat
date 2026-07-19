@@ -7,7 +7,13 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { MAX_SUGGESTIONS, THEMES, type Theme } from '$lib/user-settings.js';
+	import {
+		MAX_GLOBAL_INSTRUCTIONS_LENGTH,
+		MAX_SUGGESTIONS,
+		THEMES,
+		type Theme
+	} from '$lib/user-settings.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -24,7 +30,15 @@
 	let rows = $state(data.settings.suggestions.map((text) => ({ id: crypto.randomUUID(), text })));
 	let suggestionsBusy = $state(false);
 
-	async function putSettings(body: { theme?: Theme; suggestions?: string[] }) {
+	let instructions = $state(data.settings.globalInstructions);
+	let savedInstructions = $state(data.settings.globalInstructions);
+	let instructionsBusy = $state(false);
+
+	async function putSettings(body: {
+		theme?: Theme;
+		suggestions?: string[];
+		globalInstructions?: string;
+	}) {
 		const res = await fetch('/api/user/settings', {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
@@ -74,6 +88,37 @@
 			toast.error(e instanceof Error ? e.message : 'Failed to save suggestions');
 		} finally {
 			suggestionsBusy = false;
+		}
+	}
+
+	async function saveInstructions() {
+		if (instructionsBusy) return;
+		const trimmed = instructions.trim();
+		if (trimmed === savedInstructions) return;
+		instructionsBusy = true;
+		try {
+			await putSettings({ globalInstructions: trimmed });
+			savedInstructions = trimmed;
+			toast.success(trimmed ? 'Instructions saved' : 'Instructions cleared');
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to save instructions');
+		} finally {
+			instructionsBusy = false;
+		}
+	}
+
+	async function resetInstructions() {
+		if (instructionsBusy || !savedInstructions) return;
+		instructionsBusy = true;
+		try {
+			await putSettings({ globalInstructions: '' });
+			instructions = '';
+			savedInstructions = '';
+			toast.success('Instructions cleared');
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to reset instructions');
+		} finally {
+			instructionsBusy = false;
 		}
 	}
 </script>
@@ -145,6 +190,49 @@
 				</Button>
 				<Button size="sm" onclick={saveSuggestions} disabled={suggestionsBusy}>
 					{suggestionsBusy ? 'Saving…' : 'Save suggestions'}
+				</Button>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Response instructions</Card.Title>
+			<Card.Description>
+				Tell the assistant how to respond (e.g. "never use emojis"). Applies to every chat, in
+				addition to any per-conversation system prompt.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-2">
+			<Textarea
+				bind:value={instructions}
+				rows={4}
+				maxlength={MAX_GLOBAL_INSTRUCTIONS_LENGTH}
+				placeholder="e.g. Answer concisely and never use emojis."
+			/>
+			<div class="flex items-center justify-between">
+				<p class="text-xs text-muted-foreground">
+					This is added to the system prompt of every chat. Leave empty for no global instructions.
+				</p>
+				<span class="shrink-0 text-xs text-muted-foreground"
+					>{instructions.length}/{MAX_GLOBAL_INSTRUCTIONS_LENGTH}</span
+				>
+			</div>
+			<div class="flex justify-end gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={resetInstructions}
+					disabled={instructionsBusy || !savedInstructions}
+				>
+					Clear
+				</Button>
+				<Button
+					size="sm"
+					onclick={saveInstructions}
+					disabled={instructionsBusy || instructions.trim() === savedInstructions}
+				>
+					{instructionsBusy ? 'Saving…' : 'Save instructions'}
 				</Button>
 			</div>
 		</Card.Content>
