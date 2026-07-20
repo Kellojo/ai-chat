@@ -29,14 +29,15 @@ describe('db migrations', () => {
 			'messages_fts',
 			'user_settings',
 			'memory_fts',
-			'documents_fts'
+			'documents_fts',
+			'agent_user_overrides'
 		]) {
 			expect(tables).toContain(expected);
 		}
 		const versions = db.prepare('SELECT version FROM _migrations ORDER BY version').all() as {
 			version: number;
 		}[];
-		expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 		db.close();
 	});
 

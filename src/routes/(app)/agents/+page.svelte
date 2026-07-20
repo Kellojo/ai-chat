@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import { describeCron } from '$lib/cron.js';
 	import { formatDateTime } from '$lib/datetime.js';
 	import type { Agent } from '$lib/types.js';
 	import type { PageData } from './$types';
@@ -14,6 +18,7 @@
 	let { data }: { data: PageData } = $props();
 
 	let runBusy = $state<string | null>(null);
+	let toggleBusy = $state<string | null>(null);
 	let deleteTarget = $state<Agent | null>(null);
 	let deleteBusy = $state(false);
 
@@ -46,6 +51,27 @@
 			toast.error(e instanceof Error ? e.message : 'Failed to start run');
 		} finally {
 			runBusy = null;
+		}
+	}
+
+	async function toggleAgent(agent: Agent, checked: boolean) {
+		if (toggleBusy) return;
+		toggleBusy = agent.id;
+		try {
+			const res = await fetch(`/api/agents/${agent.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ enabled: checked })
+			});
+			if (!res.ok) {
+				const body = (await res.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(body?.message ?? `Request failed (${res.status})`);
+			}
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to update agent');
+		} finally {
+			toggleBusy = null;
 		}
 	}
 
@@ -110,14 +136,28 @@
 							{/if}
 						</Table.Cell>
 						<Table.Cell>
-							<Badge variant="secondary">{agent.triggerType}</Badge>
+							{#if agent.triggerType === 'schedule'}
+								{@const schedule = describeCron(agent.triggerConfig.cron, data.timeFormat)}
+								{#if schedule}
+									<Badge variant="secondary">{schedule}</Badge>
+								{:else}
+									<Badge variant="secondary">{agent.triggerType}</Badge>
+								{/if}
+							{:else}
+								<Badge variant="secondary">{agent.triggerType}</Badge>
+							{/if}
 						</Table.Cell>
 						<Table.Cell>
-							{#if agent.enabled}
-								<Badge variant="secondary">Enabled</Badge>
-							{:else}
-								<Badge variant="outline" class="text-muted-foreground">Disabled</Badge>
-							{/if}
+							<div class="flex items-center gap-2">
+								<Switch
+									checked={agent.enabled}
+									disabled={toggleBusy !== null}
+									onCheckedChange={(checked) => toggleAgent(agent, checked)}
+								/>
+								<span class="text-sm text-muted-foreground">
+									{agent.enabled ? 'Enabled' : 'Disabled'}
+								</span>
+							</div>
 						</Table.Cell>
 						<Table.Cell class="whitespace-nowrap text-muted-foreground">
 							{agent.nextRunAt ? formatDateTime(agent.nextRunAt, data.timeFormat) : '—'}
@@ -126,32 +166,47 @@
 							{agent.lastRunAt ? formatDateTime(agent.lastRunAt, data.timeFormat) : '—'}
 						</Table.Cell>
 						<Table.Cell class="text-right whitespace-nowrap">
-							<div class="flex justify-end gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={runBusy !== null}
-									onclick={() => runNow(agent)}
-								>
-									{#if runBusy === agent.id}
-										<LoaderCircleIcon class="size-3.5 animate-spin" />
-										Starting…
-									{:else}
-										Run now
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="ghost"
+											size="icon"
+											title="Actions"
+											aria-label="Actions"
+										>
+											<EllipsisIcon class="size-4" />
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item disabled={runBusy !== null} onclick={() => runNow(agent)}>
+										{#if runBusy === agent.id}
+											<LoaderCircleIcon class="size-4 animate-spin" />
+											Starting…
+										{:else}
+											Run now
+										{/if}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item>
+										{#snippet child({ props })}
+											<a href={resolve(`/agents/${agent.id}/runs`)} {...props}>Runs</a>
+										{/snippet}
+									</DropdownMenu.Item>
+									{#if agent.userId !== null}
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item>
+											{#snippet child({ props })}
+												<a href={resolve(`/agents/${agent.id}`)} {...props}>Edit</a>
+											{/snippet}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item variant="destructive" onclick={() => (deleteTarget = agent)}>
+											Delete
+										</DropdownMenu.Item>
 									{/if}
-								</Button>
-								<Button variant="ghost" size="sm" href={resolve(`/agents/${agent.id}/runs`)}>
-									Runs
-								</Button>
-								{#if agent.userId !== null}
-									<Button variant="ghost" size="sm" href={resolve(`/agents/${agent.id}`)}>
-										Edit
-									</Button>
-									<Button variant="destructive" size="sm" onclick={() => (deleteTarget = agent)}>
-										Delete
-									</Button>
-								{/if}
-							</div>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
 						</Table.Cell>
 					</Table.Row>
 				{:else}

@@ -126,6 +126,39 @@ export function listDueScheduleAgents(db: Db, now: number): AgentRow[] {
 		.all(now) as AgentRow[];
 }
 
+export function setAgentOverride(db: Db, userId: string, agentId: string, enabled: boolean): void {
+	const now = Date.now();
+	db.prepare(
+		`INSERT INTO agent_user_overrides (user_id, agent_id, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(user_id, agent_id)
+		 DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`
+	).run(userId, agentId, enabled ? 1 : 0, now, now);
+}
+
+export function listAgentOverrides(db: Db, userId: string): Map<string, boolean> {
+	const rows = db
+		.prepare('SELECT agent_id, enabled FROM agent_user_overrides WHERE user_id = ?')
+		.all(userId) as { agent_id: string; enabled: number }[];
+	return new Map(rows.map((row) => [row.agent_id, row.enabled === 1]));
+}
+
+export function listOverridesForAgent(db: Db, agentId: string): Map<string, boolean> {
+	const rows = db
+		.prepare('SELECT user_id, enabled FROM agent_user_overrides WHERE agent_id = ?')
+		.all(agentId) as { user_id: string; enabled: number }[];
+	return new Map(rows.map((row) => [row.user_id, row.enabled === 1]));
+}
+
+export function effectiveEnabled(agent: AgentRow, overrides: Map<string, boolean>): boolean {
+	if (agent.user_id === null) return overrides.get(agent.id) ?? agent.enabled === 1;
+	return agent.enabled === 1;
+}
+
+export function toPublicWithOverrides(row: AgentRow, overrides: Map<string, boolean>): Agent {
+	return { ...toPublic(row), enabled: effectiveEnabled(row, overrides) };
+}
+
 export function listActiveUserIds(db: Db, since: number): string[] {
 	return (
 		db

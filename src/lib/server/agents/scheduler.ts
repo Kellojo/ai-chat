@@ -1,7 +1,12 @@
 import { CronExpressionParser } from 'cron-parser';
 import { config } from '../config.js';
 import { getDb, type Db } from '../db/index.js';
-import { claimAgentRun, listActiveUserIds, listDueScheduleAgents } from '../db/repo/agents.js';
+import {
+	claimAgentRun,
+	listActiveUserIds,
+	listDueScheduleAgents,
+	listOverridesForAgent
+} from '../db/repo/agents.js';
 import { gcAgentWorkspaces } from '../workspaces.js';
 import { startAgentRun } from './runner.js';
 
@@ -55,7 +60,9 @@ export async function tickAgents(
 		started++;
 		try {
 			if (agent.user_id === null) {
+				const overrides = listOverridesForAgent(db, agent.id);
 				for (const userId of listActiveUserIds(db, agent.last_run_at ?? 0)) {
+					if (overrides.get(userId) === false) continue;
 					await run(agent.id, userId);
 				}
 			} else {

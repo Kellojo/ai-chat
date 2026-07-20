@@ -5,13 +5,18 @@ import {
 	claimAgentRun,
 	createAgent,
 	deleteAgent,
+	effectiveEnabled,
 	getAgent,
 	listActiveUserIds,
+	listAgentOverrides,
 	listAgents,
 	listDueScheduleAgents,
+	listOverridesForAgent,
 	listPersonaAgents,
+	setAgentOverride,
 	setAgentRunTimes,
 	toPublic,
+	toPublicWithOverrides,
 	updateAgent
 } from './agents.js';
 import { createConversation, softDeleteConversation } from './conversations.js';
@@ -192,6 +197,75 @@ describe('agents repo', () => {
 		expect(getAgent(db, row.id)!.next_run_at).toBeNull();
 		expect(claimAgentRun(db, row.id, 222, 333)).toBe(false);
 		expect(claimAgentRun(db, row.id, null, 333)).toBe(true);
+	});
+
+	it('setAgentOverride inserts and upserts a per-user override', () => {
+		const builtin = createAgent(db, null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		setAgentOverride(db, 'u1', builtin.id, false);
+		expect(listAgentOverrides(db, 'u1').get(builtin.id)).toBe(false);
+		setAgentOverride(db, 'u1', builtin.id, true);
+		const overrides = listAgentOverrides(db, 'u1');
+		expect(overrides.size).toBe(1);
+		expect(overrides.get(builtin.id)).toBe(true);
+		expect(listAgentOverrides(db, 'nobody').size).toBe(0);
+	});
+
+	it('listOverridesForAgent returns a per-user map for one agent', () => {
+		db.prepare(
+			'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u2\', \'d@e.f\', \'D\', 0, 0, 0, \'user\')'
+		).run();
+		const builtin = createAgent(db, null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		const other = createAgent(db, null, {
+			name: 'other',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		setAgentOverride(db, 'u1', builtin.id, false);
+		setAgentOverride(db, 'u2', builtin.id, true);
+		setAgentOverride(db, 'u1', other.id, false);
+		const overrides = listOverridesForAgent(db, builtin.id);
+		expect(overrides.size).toBe(2);
+		expect(overrides.get('u1')).toBe(false);
+		expect(overrides.get('u2')).toBe(true);
+	});
+
+	it('effectiveEnabled applies overrides only to built-in agents', () => {
+		const builtin = createAgent(db, null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		const disabledBuiltin = createAgent(db, null, {
+			name: 'off',
+			systemPrompt: 'x',
+			triggerType: 'manual',
+			enabled: false
+		});
+		const own = createAgent(db, 'u1', { name: 'own', systemPrompt: 'x', triggerType: 'manual' });
+		expect(effectiveEnabled(builtin, new Map())).toBe(true);
+		expect(effectiveEnabled(builtin, new Map([[builtin.id, false]]))).toBe(false);
+		expect(effectiveEnabled(disabledBuiltin, new Map())).toBe(false);
+		expect(effectiveEnabled(disabledBuiltin, new Map([[disabledBuiltin.id, true]]))).toBe(true);
+		expect(effectiveEnabled(own, new Map([[own.id, false]]))).toBe(true);
+	});
+
+	it('toPublicWithOverrides reflects the effective enabled state', () => {
+		const builtin = createAgent(db, null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		const overrides = new Map([[builtin.id, false]]);
+		expect(toPublicWithOverrides(builtin, overrides).enabled).toBe(false);
+		expect(toPublic(builtin).enabled).toBe(true);
 	});
 
 	it('deleteAgent removes the row', () => {

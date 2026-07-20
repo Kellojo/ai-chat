@@ -4,7 +4,7 @@ import { isHttpError } from '@sveltejs/kit';
 process.env.DATABASE_PATH = ':memory:';
 
 const { closeDb, getDb } = await import('$lib/server/db/index.js');
-const { createAgent } = await import('$lib/server/db/repo/agents.js');
+const { createAgent, getAgent } = await import('$lib/server/db/repo/agents.js');
 const { GET, POST } = await import('./+server.js');
 const { GET: GET_ONE, PATCH, DELETE: DELETE_AGENT } = await import('./[id]/+server.js');
 const { GET: GET_RUNS } = await import('./[id]/runs/+server.js');
@@ -142,6 +142,66 @@ describe('agent ownership scoping', () => {
 			(await call(PATCH, { user: u2, params: { id: builtin.id }, body: { name: 'nope' } })).status
 		).toBe(403);
 		expect((await call(DELETE_AGENT, { user: u2, params: { id: builtin.id } })).status).toBe(403);
+	});
+
+	it('toggles a builtin agent per user via an enabled-only patch', async () => {
+		const builtin = createAgent(getDb(), null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		const res = await call<{ agent: import('$lib/types.js').Agent }>(PATCH, {
+			user: u2,
+			params: { id: builtin.id },
+			body: { enabled: false }
+		});
+		expect(res.status).toBe(200);
+		expect(res.body.agent.enabled).toBe(false);
+		expect(getAgent(getDb(), builtin.id)!.enabled).toBe(1);
+		const getU2 = await call<{ agent: import('$lib/types.js').Agent }>(GET_ONE, {
+			user: u2,
+			params: { id: builtin.id }
+		});
+		expect(getU2.body.agent.enabled).toBe(false);
+		const getU1 = await call<{ agent: import('$lib/types.js').Agent }>(GET_ONE, {
+			user: u1,
+			params: { id: builtin.id }
+		});
+		expect(getU1.body.agent.enabled).toBe(true);
+		const listU2 = await call<{ agents: import('$lib/types.js').Agent[] }>(GET, { user: u2 });
+		expect(listU2.body.agents.find((a) => a.id === builtin.id)!.enabled).toBe(false);
+		const listU1 = await call<{ agents: import('$lib/types.js').Agent[] }>(GET, { user: u1 });
+		expect(listU1.body.agents.find((a) => a.id === builtin.id)!.enabled).toBe(true);
+		const back = await call<{ agent: import('$lib/types.js').Agent }>(PATCH, {
+			user: u2,
+			params: { id: builtin.id },
+			body: { enabled: true }
+		});
+		expect(back.status).toBe(200);
+		expect(back.body.agent.enabled).toBe(true);
+	});
+
+	it('still forbids patching other fields on a builtin agent', async () => {
+		const builtin = createAgent(getDb(), null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		expect(
+			(
+				await call(PATCH, {
+					user: u2,
+					params: { id: builtin.id },
+					body: { enabled: false, name: 'nope' }
+				})
+			).status
+		).toBe(403);
+		expect(
+			(await call(PATCH, { user: u2, params: { id: builtin.id }, body: { name: 'nope' } })).status
+		).toBe(403);
+		expect((await call(PATCH, { user: u2, params: { id: builtin.id }, body: {} })).status).toBe(
+			403
+		);
 	});
 
 	it('lets an admin list runs of a builtin agent', async () => {

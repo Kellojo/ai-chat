@@ -41,6 +41,9 @@ importers:
       cron-parser:
         specifier: ^5.6.2
         version: 5.6.2
+      cronstrue:
+        specifier: ^3.24.0
+        version: 3.24.0
       diff:
         specifier: ^9.0.0
         version: 9.0.0
@@ -1549,6 +1552,10 @@ packages:
   cron-parser@5.6.2:
     resolution: {integrity: sha512-yJ/G1LVir6CnlkLI40CsampPLKl1SprGGlUagWtGJxewytRVYezv5xVyzzbT+Pvzx+VIRvZVF7/a0eEMTxdnTA==}
     engines: {node: '>=18'}
+
+  cronstrue@3.24.0:
+    resolution: {integrity: sha512-t/Ji3Ur2c/pzhIAWNwC0ftl3JAE4dLfCjAdZoTZXmPDZwcispnS1PaMcMS4OmIIXyIVouAz+yw+mfQiE3hz5OQ==}
+    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -4747,6 +4754,8 @@ snapshots:
   cron-parser@5.6.2:
     dependencies:
       luxon: 3.7.2
+
+  cronstrue@3.24.0: {}
 
   cross-spawn@7.0.6:
     dependencies:

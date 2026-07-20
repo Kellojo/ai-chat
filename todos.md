@@ -5,9 +5,16 @@ General Questions:
 - What is the difference between a agent mode yes/no conversation?
 
 Todos:
-- Think about using websockets or so for showing, when agents are running/conversation status updates, currently the polling based approach kind of does not work :D
 
 Ideas for later
+
+- For agents allow them to run on an event, like when a memory is created, a document is created, ... Also allow running only on every Nth occurrence. This would be used to:
+  - Have an agent cleaning up the memories on every 5th memory creation/update
+  - Have an agent cleaning up the documents on every 5th document creation/update
+
+Come up with a bunch of events and let me choose, which ones to implement
+
+- Think about using websockets or so for showing, when agents are running/conversation status/unread indicator updates, currently the polling based approach does not work well. Draft a plan first and let me review it
 
 - Add paging/infinite scrolling for the conversation history
 - Add loggs to see better what is going on (console should be enough)

@@ -5,9 +5,11 @@ import { requireUser } from '$lib/server/auth/guards.js';
 import { getDb } from '$lib/server/db/index.js';
 import {
 	createAgent,
+	listAgentOverrides,
 	listAgents,
 	listPersonaAgents,
-	toPublic
+	toPublic,
+	toPublicWithOverrides
 } from '$lib/server/db/repo/agents.js';
 import { findModel } from '$lib/server/db/repo/models.js';
 import type { RequestHandler } from './$types';
@@ -19,7 +21,8 @@ export const GET: RequestHandler = ({ locals, url }) => {
 		url.searchParams.get('trigger') === 'persona'
 			? listPersonaAgents(db, user.id)
 			: listAgents(db, user.id);
-	return json({ agents: rows.map(toPublic) });
+	const overrides = listAgentOverrides(db, user.id);
+	return json({ agents: rows.map((row) => toPublicWithOverrides(row, overrides)) });
 };
 
 const triggerConfigSchema = z.object({
