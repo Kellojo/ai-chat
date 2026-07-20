@@ -19,6 +19,7 @@
 	import { authClient } from '$lib/auth-client.js';
 	import { activeChats } from '$lib/state/active-chats.svelte.js';
 	import { serverActiveChatIds } from '$lib/state/chat-status.svelte.js';
+	import { onServerEvent, onServerEventResync } from '$lib/state/events.svelte.js';
 	import type { Conversation } from '$lib/types.js';
 
 	let {
@@ -77,18 +78,45 @@
 		refreshAgentStats();
 		refreshMemoryCount();
 		refreshActiveChats().catch(() => {});
-		const refreshIfVisible = () => {
-			if (document.visibilityState === 'visible') {
-				refreshAgentStats();
-				refreshMemoryCount();
-				refreshActiveChats().catch(() => {});
-			}
+		let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+		const scheduleInvalidate = () => {
+			if (invalidateTimer) return;
+			invalidateTimer = setTimeout(() => {
+				invalidateTimer = null;
+				void invalidateAll();
+			}, 200);
 		};
-		const interval = setInterval(refreshIfVisible, 5000);
-		document.addEventListener('visibilitychange', refreshIfVisible);
+		const offEvents = onServerEvent((event) => {
+			switch (event.type) {
+				case 'chat.stream.started':
+					serverActiveChatIds.add(event.conversationId);
+					break;
+				case 'chat.stream.finished':
+					serverActiveChatIds.delete(event.conversationId);
+					scheduleInvalidate();
+					break;
+				case 'chat.created':
+				case 'conversation.updated':
+					scheduleInvalidate();
+					break;
+				case 'agent.run.started':
+				case 'agent.run.finished':
+					refreshAgentStats();
+					break;
+				case 'memory.changed':
+					refreshMemoryCount();
+					break;
+			}
+		});
+		const offResync = onServerEventResync(() => {
+			refreshAgentStats();
+			refreshMemoryCount();
+			refreshActiveChats().catch(() => {});
+		});
 		return () => {
-			clearInterval(interval);
-			document.removeEventListener('visibilitychange', refreshIfVisible);
+			offEvents();
+			offResync();
+			if (invalidateTimer) clearTimeout(invalidateTimer);
 		};
 	});
 

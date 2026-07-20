@@ -1,4 +1,9 @@
-import type { AgentEventName, AgentTriggerConfig } from '$lib/types.js';
+import {
+	AGENT_EVENT_NAMES,
+	type AgentEventName,
+	type AgentTriggerConfig,
+	type ServerEvent
+} from '$lib/types.js';
 import { getDb, type Db } from '../db/index.js';
 import { listRunningAgentIds } from '../db/repo/agent-runs.js';
 import {
@@ -6,6 +11,7 @@ import {
 	listEventAgents,
 	listOverridesForAgent
 } from '../db/repo/agents.js';
+import { subscribeAllServerEvents } from '../events/bus.js';
 
 export async function emitAgentEvent(
 	event: AgentEventName,
@@ -54,4 +60,22 @@ export async function emitAgentEvent(
 	} catch (e) {
 		console.error(`Failed to emit agent event ${event}`, e);
 	}
+}
+
+export function handleServerEvent(
+	userId: string,
+	event: ServerEvent,
+	db: Db = getDb(),
+	runFn?: (agentId: string, userId: string, instructions: string) => Promise<unknown>
+): void {
+	if (!(AGENT_EVENT_NAMES as readonly string[]).includes(event.type)) return;
+	const { type, ...payload } = event;
+	void emitAgentEvent(type as AgentEventName, userId, payload, db, runFn);
+}
+
+export function startAgentEventDispatcher(): void {
+	const globalFlag = globalThis as { __agentEventDispatcherStarted?: boolean };
+	if (globalFlag.__agentEventDispatcherStarted) return;
+	globalFlag.__agentEventDispatcherStarted = true;
+	subscribeAllServerEvents((userId, event) => handleServerEvent(userId, event));
 }

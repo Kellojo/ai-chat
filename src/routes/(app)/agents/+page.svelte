@@ -12,6 +12,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { describeCron } from '$lib/cron.js';
 	import { formatDateTime, formatTimeAgo } from '$lib/datetime.js';
+	import { onServerEvent } from '$lib/state/events.svelte.js';
 	import type { Agent } from '$lib/types.js';
 	import type { PageData } from './$types';
 
@@ -23,14 +24,20 @@
 	let deleteBusy = $state(false);
 
 	$effect(() => {
-		const refreshIfVisible = () => {
-			if (document.visibilityState === 'visible') invalidateAll();
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		const schedule = () => {
+			if (timer) return;
+			timer = setTimeout(() => {
+				timer = null;
+				void invalidateAll();
+			}, 300);
 		};
-		const interval = setInterval(refreshIfVisible, 5000);
-		document.addEventListener('visibilitychange', refreshIfVisible);
+		const off = onServerEvent((event) => {
+			if (event.type === 'agent.run.started' || event.type === 'agent.run.finished') schedule();
+		});
 		return () => {
-			clearInterval(interval);
-			document.removeEventListener('visibilitychange', refreshIfVisible);
+			off();
+			if (timer) clearTimeout(timer);
 		};
 	});
 

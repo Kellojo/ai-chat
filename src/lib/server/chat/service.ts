@@ -21,7 +21,7 @@ import { getAttachment, linkAttachmentsToMessage } from '../db/repo/attachments.
 import { getAgent } from '../db/repo/agents.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
-import { emitAgentEvent } from '../agents/events.js';
+import { publishServerEvent } from '../events/bus.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
 import { buildTools } from '../tools/registry.js';
@@ -159,6 +159,7 @@ export async function handleChatRequest(
 
 	const controller = new AbortController();
 	registerStream(conversation.id, controller);
+	publishServerEvent(userId, { type: 'chat.stream.started', conversationId: conversation.id });
 
 	let errorText: string | null = null;
 	let result: ReturnType<typeof streamText>;
@@ -204,14 +205,15 @@ export async function handleChatRequest(
 					});
 				}
 				if (status === 'complete') {
-					void emitAgentEvent('chat.message_completed', userId, {
+					publishServerEvent(userId, {
+						type: 'chat.message_completed',
 						conversationId: conversation.id
 					});
 				}
 				if (conversation.title === '') {
 					const assistantText = extractText(responseMessage.parts);
 					const userText = extractText(lastUserMessage.parts);
-					generateConversationTitle(conversation.id, ref, userText, assistantText).catch(
+					generateConversationTitle(conversation.id, userId, ref, userText, assistantText).catch(
 						() => undefined
 					);
 				}
@@ -219,6 +221,10 @@ export async function handleChatRequest(
 				console.error('Failed to persist assistant message', e);
 			} finally {
 				releaseStream(conversation.id, controller);
+				publishServerEvent(userId, {
+					type: 'chat.stream.finished',
+					conversationId: conversation.id
+				});
 				await close();
 			}
 		}

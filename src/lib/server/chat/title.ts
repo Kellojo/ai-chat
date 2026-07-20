@@ -1,6 +1,7 @@
 import { generateText, type LanguageModel } from 'ai';
 import { getDb } from '../db/index.js';
 import { setConversationTitle } from '../db/repo/conversations.js';
+import { publishServerEvent } from '../events/bus.js';
 import { resolveModel, roleModel } from '../llm/registry.js';
 
 function titleModel(fallback: { providerId: string; modelId: string }): LanguageModel {
@@ -13,6 +14,7 @@ function titleModel(fallback: { providerId: string; modelId: string }): Language
 
 export async function generateConversationTitle(
 	conversationId: string,
+	userId: string,
 	fallbackRef: { providerId: string; modelId: string },
 	userText: string,
 	assistantText: string
@@ -34,5 +36,6 @@ export async function generateConversationTitle(
 		.slice(0, 80);
 	if (title) {
 		setConversationTitle(getDb(), conversationId, title);
+		publishServerEvent(userId, { type: 'conversation.updated', conversationId });
 	}
 }

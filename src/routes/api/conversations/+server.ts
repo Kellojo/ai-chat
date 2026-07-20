@@ -1,6 +1,5 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { emitAgentEvent } from '$lib/server/agents/events.js';
 import { requireUser } from '$lib/server/auth/guards.js';
 import { getDb } from '$lib/server/db/index.js';
 import { getAgent } from '$lib/server/db/repo/agents.js';
@@ -10,6 +9,7 @@ import {
 	toPublic,
 	updateConversation
 } from '$lib/server/db/repo/conversations.js';
+import { publishServerEvent } from '$lib/server/events/bus.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = ({ locals }) => {
@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 	const conversation = createConversation(db, user.id, parsed.data);
 	if (conversation.kind === 'chat') {
-		void emitAgentEvent('chat.created', user.id, { conversationId: conversation.id });
+		publishServerEvent(user.id, { type: 'chat.created', conversationId: conversation.id });
 	}
 	if (agent) {
 		const updated = updateConversation(db, user.id, conversation.id, {

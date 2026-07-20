@@ -9,10 +9,16 @@ export const GET: RequestHandler = ({ locals }) => {
 	const user = requireUser(locals);
 	const db = getDb();
 	const overrides = listAgentOverrides(db, user.id);
-	const agents = listAgents(db, user.id).filter((a) => effectiveEnabled(a, overrides));
-	const running = listRunningAgentIds(
-		db,
-		agents.map((a) => a.id)
-	).length;
-	return json({ running, total: agents.length });
+	const agents = listAgents(db, user.id);
+	const running = new Set(
+		listRunningAgentIds(
+			db,
+			agents.map((a) => a.id)
+		)
+	);
+	let total = 0;
+	for (const a of agents) {
+		if (effectiveEnabled(a, overrides) || running.has(a.id)) total++;
+	}
+	return json({ running: running.size, total });
 };

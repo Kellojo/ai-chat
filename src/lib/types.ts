@@ -67,6 +67,23 @@ export const AGENT_EVENT_NAMES = [
 
 export type AgentEventName = (typeof AGENT_EVENT_NAMES)[number];
 
+export type ServerEvent =
+	| { type: 'chat.created'; conversationId: string }
+	| { type: 'chat.message_completed'; conversationId: string }
+	| { type: 'chat.stream.started'; conversationId: string }
+	| { type: 'chat.stream.finished'; conversationId: string }
+	| { type: 'conversation.updated'; conversationId: string }
+	| {
+			type: 'memory.changed';
+			scope: 'user' | 'shared';
+			path: string;
+			action: 'create' | 'update' | 'delete';
+			author: string;
+	  }
+	| { type: 'agent.run.started'; agentId: string; runId: string }
+	| { type: 'agent.run.progress'; agentId: string; runId: string }
+	| { type: 'agent.run.finished'; agentId: string; runId: string; status: AgentRunStatus };
+
 export type AgentTriggerType = 'persona' | 'schedule' | 'http' | 'manual' | 'event';
 
 export interface AgentTriggerConfig {

@@ -7,6 +7,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { formatDateTime } from '$lib/datetime.js';
+	import { onServerEvent, onServerEventResync } from '$lib/state/events.svelte.js';
 	import { chatMessageToUIMessage } from '$lib/types.js';
 	import type { AgentRun, ChatMessage } from '$lib/types.js';
 	import type { PageData } from './$types';
@@ -25,24 +26,54 @@
 		run.endedAt ? `${((run.endedAt - run.startedAt) / 1000).toFixed(1)}s` : '—'
 	);
 
+	let refreshing = false;
+	let queued = false;
+
 	async function refresh() {
-		const res = await fetch(`/api/agent-runs/${run.id}`);
-		if (!res.ok) return;
-		const body = (await res.json()) as { run: AgentRun; messages: ChatMessage[] };
-		const nearBottom = container
-			? container.scrollHeight - container.scrollTop - container.clientHeight < 120
-			: false;
-		run = body.run;
-		messages = body.messages;
-		tick().then(() => {
-			if (nearBottom && container) container.scrollTop = container.scrollHeight;
-		});
+		if (refreshing) {
+			queued = true;
+			return;
+		}
+		refreshing = true;
+		try {
+			const res = await fetch(`/api/agent-runs/${run.id}`);
+			if (!res.ok) return;
+			const body = (await res.json()) as { run: AgentRun; messages: ChatMessage[] };
+			const nearBottom = container
+				? container.scrollHeight - container.scrollTop - container.clientHeight < 120
+				: false;
+			run = body.run;
+			messages = body.messages;
+			tick().then(() => {
+				if (nearBottom && container) container.scrollTop = container.scrollHeight;
+			});
+		} finally {
+			refreshing = false;
+			if (queued) {
+				queued = false;
+				await refresh();
+			}
+		}
 	}
 
 	$effect(() => {
 		if (run.status !== 'running') return;
-		const interval = setInterval(refresh, 2000);
-		return () => clearInterval(interval);
+		const id = run.id;
+		const offEvent = onServerEvent((event) => {
+			if (
+				(event.type === 'agent.run.progress' || event.type === 'agent.run.finished') &&
+				event.runId === id
+			) {
+				refresh().catch(() => {});
+			}
+		});
+		const offResync = onServerEventResync(() => {
+			if (run.status === 'running') refresh().catch(() => {});
+		});
+		return () => {
+			offEvent();
+			offResync();
+		};
 	});
 
 	async function stopRun() {

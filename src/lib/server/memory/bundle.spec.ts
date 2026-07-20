@@ -174,6 +174,34 @@ describe('memory bundle', () => {
 		expect(rows[0].diff).toContain('-John likes espresso and runs marathons.');
 	});
 
+	it('deleteConcept publishes a memory.changed event with action delete', async () => {
+		const { subscribeServerEvents } = await import('../events/bus.js');
+		bundle.writeConcept(
+			db,
+			'user',
+			'u1',
+			'events/victim.md',
+			{ frontmatter: { title: 'Victim' }, body: 'Soon to be deleted.' },
+			audit
+		);
+		const seen: unknown[] = [];
+		const unsub = subscribeServerEvents('u1', (_userId, event) => {
+			if (event.type === 'memory.changed') seen.push(event);
+		});
+		try {
+			bundle.deleteConcept(db, 'user', 'u1', 'events/victim.md', audit);
+		} finally {
+			unsub();
+		}
+		expect(seen).toContainEqual({
+			type: 'memory.changed',
+			scope: 'user',
+			path: 'events/victim.md',
+			action: 'delete',
+			author: 'user:u1'
+		});
+	});
+
 	it('deleteConcept prunes the now-empty directory chain', () => {
 		bundle.writeConcept(
 			db,

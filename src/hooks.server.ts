@@ -4,6 +4,7 @@ import { building } from '$app/environment';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth } from '$lib/server/auth/index.js';
 import { seedBuiltinAgent, seedMemoryCleanupAgent } from '$lib/server/agents/builtin.js';
+import { startAgentEventDispatcher } from '$lib/server/agents/events.js';
 import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
@@ -22,6 +23,7 @@ if (!building) {
 	if (upserted > 0 || removed > 0) {
 		console.log(`Memory index reconciled: ${upserted} upserted, ${removed} removed`);
 	}
+	startAgentEventDispatcher();
 	startAgentScheduler(getDb());
 }
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type Db } from '../db/index.js';
 import { createAgent, setAgentOverride } from '../db/repo/agents.js';
 import { createAgentRun, finishAgentRun } from '../db/repo/agent-runs.js';
-import { emitAgentEvent } from './events.js';
+import { emitAgentEvent, handleServerEvent } from './events.js';
 
 let db: Db;
 
@@ -151,5 +151,42 @@ describe('emitAgentEvent', () => {
 		).resolves.toBeUndefined();
 		expect(consoleError).toHaveBeenCalled();
 		consoleError.mockRestore();
+	});
+});
+
+describe('handleServerEvent', () => {
+	it('dispatches agent-trigger events with their payload', async () => {
+		const agent = seedEventAgent('u1', { event: 'chat.created' });
+		const runFn = vi.fn().mockResolvedValue(undefined);
+		handleServerEvent('u1', { type: 'chat.created', conversationId: 'c1' }, db, runFn);
+		await vi.waitFor(() => expect(runFn).toHaveBeenCalledTimes(1));
+		expect(runFn).toHaveBeenCalledWith(
+			agent.id,
+			'u1',
+			expect.stringContaining('"conversationId":"c1"')
+		);
+	});
+
+	it('keeps the memory.changed payload shape', async () => {
+		seedEventAgent('u1', { event: 'memory.changed' });
+		const runFn = vi.fn().mockResolvedValue(undefined);
+		handleServerEvent(
+			'u1',
+			{ type: 'memory.changed', scope: 'user', path: 'x.md', action: 'create', author: 'user:u1' },
+			db,
+			runFn
+		);
+		await vi.waitFor(() => expect(runFn).toHaveBeenCalledTimes(1));
+		expect(runFn.mock.calls[0][2]).toContain(
+			'"scope":"user","path":"x.md","action":"create","author":"user:u1"'
+		);
+	});
+
+	it('ignores non-agent event types', async () => {
+		seedEventAgent('u1', { event: 'memory.changed' });
+		const runFn = vi.fn().mockResolvedValue(undefined);
+		handleServerEvent('u1', { type: 'chat.stream.finished', conversationId: 'c1' }, db, runFn);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(runFn).not.toHaveBeenCalled();
 	});
 });

@@ -20,6 +20,7 @@
 	import ChatTopbar from './ChatTopbar.svelte';
 	import MessageTimeline from './MessageTimeline.svelte';
 	import { activeChats } from '$lib/state/active-chats.svelte.js';
+	import { onServerEvent, onServerEventResync } from '$lib/state/events.svelte.js';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
 	import { createFileDrop } from '$lib/state/file-drop.svelte.js';
 	import {
@@ -138,21 +139,33 @@
 	$effect(() => {
 		if (!remoteGenerating) return;
 		const id = conversation.id;
-		const interval = setInterval(() => {
-			(async () => {
+		let finishing = false;
+		const finish = async () => {
+			if (finishing || !remoteGenerating) return;
+			finishing = true;
+			remoteGenerating = false;
+			await invalidateAll();
+			await tick();
+			chat.messages = initialMessages.map(chatMessageToUIMessage);
+			await markRead();
+		};
+		const offEvent = onServerEvent((event) => {
+			if (event.type === 'chat.stream.finished' && event.conversationId === id) {
+				void finish();
+			}
+		});
+		const offResync = onServerEventResync(() => {
+			void (async () => {
 				const res = await fetch('/api/chat/active');
 				if (!res.ok) return;
 				const { conversationIds } = (await res.json()) as { conversationIds: string[] };
-				if (!conversationIds.includes(id)) {
-					remoteGenerating = false;
-					await invalidateAll();
-					await tick();
-					chat.messages = initialMessages.map(chatMessageToUIMessage);
-					await markRead();
-				}
+				if (!conversationIds.includes(id)) await finish();
 			})().catch(() => {});
-		}, 2000);
-		return () => clearInterval(interval);
+		});
+		return () => {
+			offEvent();
+			offResync();
+		};
 	});
 
 	$effect(() => {

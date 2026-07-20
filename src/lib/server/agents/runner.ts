@@ -19,6 +19,7 @@ import {
 import { createConversation } from '../db/repo/conversations.js';
 import { createMessage, updateMessage } from '../db/repo/messages.js';
 import { findRoleModel } from '../db/repo/models.js';
+import { publishServerEvent } from '../events/bus.js';
 import { resolveModel } from '../llm/registry.js';
 import { buildTools } from '../tools/registry.js';
 import { ensureAgentWorkspace } from '../workspaces.js';
@@ -119,10 +120,12 @@ export async function startAgentRun(
 
 	const controller = new AbortController();
 	runControllers.set(run.id, controller);
+	publishServerEvent(input.userId, { type: 'agent.run.started', agentId: agent.id, runId: run.id });
 
 	const done = (async (): Promise<AgentRunRow> => {
 		let errorText: string | null = null;
 		const assistantMessageIds: string[] = [];
+		let lastProgressAt = 0;
 		try {
 			const result = streamText({
 				model,
@@ -154,6 +157,15 @@ export async function startAgentRun(
 				} else {
 					updateMessage(db, message.id, { parts: message.parts });
 				}
+				const now = Date.now();
+				if (now - lastProgressAt >= 500) {
+					lastProgressAt = now;
+					publishServerEvent(input.userId, {
+						type: 'agent.run.progress',
+						agentId: agent.id,
+						runId: run.id
+					});
+				}
 			}
 		} catch (e) {
 			if (!errorText) errorText = e instanceof Error ? e.message : String(e);
@@ -168,6 +180,12 @@ export async function startAgentRun(
 			}
 			finishAgentRun(db, run.id, errorText ? 'failed' : 'success', errorText);
 			setAgentRunTimes(db, agent.id, { lastRunAt: Date.now() });
+			publishServerEvent(input.userId, {
+				type: 'agent.run.finished',
+				agentId: agent.id,
+				runId: run.id,
+				status: errorText ? 'failed' : 'success'
+			});
 			await close();
 		}
 		return getAgentRun(db, run.id)!;

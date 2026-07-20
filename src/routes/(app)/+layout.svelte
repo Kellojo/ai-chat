@@ -1,11 +1,15 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/app/Sidebar.svelte';
 	import PanelLeftIcon from '@lucide/svelte/icons/panel-left';
+	import { startServerEvents } from '$lib/state/events.svelte.js';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
 	let sidebarOpen = $state(true);
+
+	onMount(() => startServerEvents());
 </script>
 
 <div class="flex h-screen overflow-hidden">

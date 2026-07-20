@@ -41,7 +41,7 @@
 	};
 
 	const eventLabels: Record<AgentEventName, string> = {
-		'memory.changed': 'Memory created/updated',
+		'memory.changed': 'Memory created/updated/deleted',
 		'chat.created': 'Chat created',
 		'chat.message_completed': 'Chat message completed'
 	};

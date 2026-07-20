@@ -89,7 +89,20 @@ describe('GET /api/agents/stats', () => {
 		expect(res.body).toEqual({ running: 1, total: 1 });
 	});
 
-	it('excludes disabled agents and their running runs', async () => {
+	it('excludes disabled agents that are not running', async () => {
+		seedAgent('u1', 'on');
+		createAgent(getDb(), 'u1', {
+			name: 'off',
+			systemPrompt: 'x',
+			triggerType: 'manual',
+			enabled: false
+		});
+		const res = await call<{ running: number; total: number }>(GET, { user: u1 });
+		expect(res.status).toBe(200);
+		expect(res.body).toEqual({ running: 0, total: 1 });
+	});
+
+	it('counts disabled agents with a running run in running and total', async () => {
 		const enabled = seedAgent('u1', 'on');
 		const disabled = createAgent(getDb(), 'u1', {
 			name: 'off',
@@ -101,7 +114,7 @@ describe('GET /api/agents/stats', () => {
 		createAgentRun(getDb(), { agentId: disabled.id, userId: 'u1', trigger: 'manual' });
 		const res = await call<{ running: number; total: number }>(GET, { user: u1 });
 		expect(res.status).toBe(200);
-		expect(res.body).toEqual({ running: 1, total: 1 });
+		expect(res.body).toEqual({ running: 2, total: 2 });
 	});
 
 	it('counts builtin agents in total and their running runs', async () => {

@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { recordMemoryWrite } from '../db/repo/memory-writes.js';
-import { emitAgentEvent } from '../agents/events.js';
+import { publishServerEvent } from '../events/bus.js';
 import { deleteMemoryFts, upsertMemoryFts } from './fts.js';
 import { ftsScope, bundleDir, normalizeConceptPath, resolveConceptAbs } from './paths.js';
 import type { MemoryScope } from './paths.js';
@@ -197,7 +197,8 @@ export function writeConcept(
 		author: audit.author,
 		diff
 	});
-	void emitAgentEvent('memory.changed', scope === 'user' ? userId : audit.userId, {
+	publishServerEvent(scope === 'user' ? userId : audit.userId, {
+		type: 'memory.changed',
 		scope,
 		path: target.relPath,
 		action,
@@ -229,6 +230,13 @@ export function deleteConcept(
 		action: 'delete',
 		author: audit.author,
 		diff
+	});
+	publishServerEvent(scope === 'user' ? userId : audit.userId, {
+		type: 'memory.changed',
+		scope,
+		path: target.relPath,
+		action: 'delete',
+		author: audit.author
 	});
 	regenIndex(path.dirname(target.abs));
 	pruneEmptyDirs(path.dirname(target.abs), bundleDir(scope, userId));
@@ -270,7 +278,8 @@ export function moveConcept(
 		author: audit.author,
 		diff
 	});
-	void emitAgentEvent('memory.changed', scope === 'user' ? userId : audit.userId, {
+	publishServerEvent(scope === 'user' ? userId : audit.userId, {
+		type: 'memory.changed',
 		scope,
 		path: to.relPath,
 		action: 'update',
