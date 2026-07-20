@@ -14,6 +14,7 @@ import {
 	type AgentRow
 } from '$lib/server/db/repo/agents.js';
 import type { AgentTriggerConfig, AgentTriggerType } from '$lib/types.js';
+import { AGENT_EVENT_NAMES } from '$lib/types.js';
 import type { RequestHandler } from './$types';
 
 function visibleAgent(db: Db, userId: string, id: string): AgentRow {
@@ -47,9 +48,14 @@ const patchSchema = z.object({
 	modelId: z.string().nullable().optional(),
 	skillNames: z.array(z.string()).max(50).optional(),
 	toolAllowlist: z.array(z.string()).max(200).nullable().optional(),
-	triggerType: z.enum(['persona', 'schedule', 'http', 'manual']).optional(),
+	triggerType: z.enum(['persona', 'schedule', 'http', 'manual', 'event']).optional(),
 	triggerConfig: z
-		.object({ cron: z.string().optional(), instructions: z.string().max(4000).optional() })
+		.object({
+			cron: z.string().optional(),
+			instructions: z.string().max(4000).optional(),
+			event: z.enum(AGENT_EVENT_NAMES).optional(),
+			every: z.number().int().min(1).max(1000).optional()
+		})
 		.optional(),
 	maxSteps: z.number().int().min(1).max(100).nullable().optional(),
 	enabled: z.boolean().optional()
@@ -75,17 +81,22 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (
 		data.triggerType !== undefined ||
 		data.triggerConfig?.cron !== undefined ||
+		data.triggerConfig?.event !== undefined ||
 		data.enabled !== undefined
 	) {
 		const triggerType = (data.triggerType ?? agent.trigger_type) as AgentTriggerType;
-		const cron =
-			data.triggerConfig?.cron ?? (JSON.parse(agent.trigger_config) as AgentTriggerConfig).cron;
+		const existingConfig = JSON.parse(agent.trigger_config) as AgentTriggerConfig;
+		const cron = data.triggerConfig?.cron ?? existingConfig.cron;
+		const event = data.triggerConfig?.event ?? existingConfig.event;
 		const enabled = data.enabled ?? agent.enabled === 1;
 		if (triggerType === 'schedule') {
 			if (!cron) error(400, { message: 'Schedule trigger requires a cron expression' });
 			if (!isValidCron(cron)) error(400, { message: 'Invalid cron expression' });
 			nextRunAt = enabled ? computeNextRunAt(cron) : null;
 		} else {
+			if (triggerType === 'event' && !event) {
+				error(400, { message: 'Event trigger requires an event name' });
+			}
 			nextRunAt = null;
 		}
 	}

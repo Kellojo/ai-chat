@@ -54,6 +54,17 @@ describe('agent-runs repo', () => {
 		expect(listAgentRuns(db, agentId, 1).map((r) => r.id)).toEqual([second.id]);
 	});
 
+	it('listAgentRuns filters by userId when given', () => {
+		db.prepare(
+			'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u2\', \'d@e.f\', \'D\', 0, 0, 0, \'user\')'
+		).run();
+		const mine = createAgentRun(db, { agentId, userId: 'u1', trigger: 'event' });
+		createAgentRun(db, { agentId, userId: 'u2', trigger: 'event' });
+		expect(listAgentRuns(db, agentId)).toHaveLength(2);
+		expect(listAgentRuns(db, agentId, 50, 'u1').map((r) => r.id)).toEqual([mine.id]);
+		expect(listAgentRuns(db, agentId, 50, 'u2')).toHaveLength(1);
+	});
+
 	it('listRunningAgentIds returns [] for empty input', () => {
 		createAgentRun(db, { agentId, userId: 'u1', trigger: 'manual' });
 		expect(listRunningAgentIds(db, [])).toEqual([]);

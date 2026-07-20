@@ -25,7 +25,7 @@ import { ensureAgentWorkspace } from '../workspaces.js';
 
 export interface StartAgentRunInput {
 	agentId: string;
-	trigger: 'schedule' | 'http' | 'manual';
+	trigger: 'schedule' | 'http' | 'manual' | 'event';
 	userId: string;
 	instructions?: string;
 }

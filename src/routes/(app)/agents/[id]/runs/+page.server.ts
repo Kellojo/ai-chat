@@ -11,12 +11,27 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	const db = getDb();
 	const agent = getAgent(db, params.id);
 	const isAdmin = (user as { role?: string }).role === 'admin';
-	if (!agent || (agent.user_id !== user.id && !(agent.user_id === null && isAdmin))) {
+	if (!agent || (agent.user_id !== null && agent.user_id !== user.id)) {
 		error(404, { message: 'Agent not found' });
+	}
+	const showUser = agent.user_id === null && isAdmin;
+	const runs = listAgentRuns(db, agent.id, 50, showUser ? undefined : user.id).map(runToPublic);
+	const users: Record<string, string> = {};
+	if (showUser) {
+		const ids = [...new Set(runs.map((r) => r.userId))];
+		if (ids.length > 0) {
+			const placeholders = ids.map(() => '?').join(', ');
+			const rows = db
+				.prepare(`SELECT id, name, email FROM "user" WHERE id IN (${placeholders})`)
+				.all(...ids) as { id: string; name: string; email: string }[];
+			for (const row of rows) users[row.id] = row.name || row.email;
+		}
 	}
 	return {
 		agent: agentToPublic(agent),
-		runs: listAgentRuns(db, agent.id).map(runToPublic),
+		runs,
+		users,
+		showUser,
 		timeFormat: getTimeFormat(db, user.id)
 	};
 };

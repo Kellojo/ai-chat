@@ -5,6 +5,7 @@ import matter from 'gray-matter';
 import { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { recordMemoryWrite } from '../db/repo/memory-writes.js';
+import { emitAgentEvent } from '../agents/events.js';
 import { deleteMemoryFts, upsertMemoryFts } from './fts.js';
 import { ftsScope, bundleDir, normalizeConceptPath, resolveConceptAbs } from './paths.js';
 import type { MemoryScope } from './paths.js';
@@ -186,14 +187,21 @@ export function writeConcept(
 		newRaw
 	);
 	const t = auditTarget(scope, userId, target.relPath, audit);
+	const action = oldRaw === null ? 'create' : 'update';
 	recordMemoryWrite(db, {
 		userId: t.userId,
 		conversationId: audit.conversationId,
 		agentRunId: audit.agentRunId,
 		conceptPath: t.conceptPath,
-		action: oldRaw === null ? 'create' : 'update',
+		action,
 		author: audit.author,
 		diff
+	});
+	void emitAgentEvent('memory.changed', scope === 'user' ? userId : audit.userId, {
+		scope,
+		path: target.relPath,
+		action,
+		author: audit.author
 	});
 	regenIndex(path.dirname(target.abs));
 	upsertMemoryFts(db, ftsScope(scope, userId), target.relPath, fm, input.body);
@@ -261,6 +269,12 @@ export function moveConcept(
 		action: 'update',
 		author: audit.author,
 		diff
+	});
+	void emitAgentEvent('memory.changed', scope === 'user' ? userId : audit.userId, {
+		scope,
+		path: to.relPath,
+		action: 'update',
+		author: audit.author
 	});
 	return concept;
 }

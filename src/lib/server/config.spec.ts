@@ -18,7 +18,6 @@ describe('config', () => {
 		expect(config.ENABLE_SIGNUP).toBe(true);
 		expect(config.OIDC_ONLY).toBe(false);
 		expect(config.AGENT_MAX_STEPS).toBe(25);
-		expect(config.MEMORY_EXTRACT_SCHEDULE).toBe('*/15 * * * *');
 	});
 
 	it('parses booleans and numbers from strings', async () => {

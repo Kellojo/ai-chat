@@ -59,11 +59,21 @@ export interface Conversation {
 	updatedAt: number;
 }
 
-export type AgentTriggerType = 'persona' | 'schedule' | 'http' | 'manual';
+export const AGENT_EVENT_NAMES = [
+	'memory.changed',
+	'chat.created',
+	'chat.message_completed'
+] as const;
+
+export type AgentEventName = (typeof AGENT_EVENT_NAMES)[number];
+
+export type AgentTriggerType = 'persona' | 'schedule' | 'http' | 'manual' | 'event';
 
 export interface AgentTriggerConfig {
 	cron?: string;
 	instructions?: string;
+	event?: AgentEventName;
+	every?: number;
 }
 
 export interface Agent {
@@ -86,7 +96,7 @@ export interface Agent {
 	updatedAt: number;
 }
 
-export type AgentRunTrigger = 'schedule' | 'http' | 'manual' | 'chat';
+export type AgentRunTrigger = 'schedule' | 'http' | 'manual' | 'chat' | 'event';
 
 export type AgentRunStatus = 'running' | 'success' | 'failed';
 

@@ -9,7 +9,8 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import type { Agent, AgentTriggerType, ChatModel } from '$lib/types.js';
+	import type { Agent, AgentEventName, AgentTriggerType, ChatModel } from '$lib/types.js';
+	import { AGENT_EVENT_NAMES } from '$lib/types.js';
 
 	interface ToolInfo {
 		name: string;
@@ -29,13 +30,20 @@
 		readonly?: boolean;
 	} = $props();
 
-	const triggerTypes: AgentTriggerType[] = ['persona', 'schedule', 'http', 'manual'];
+	const triggerTypes: AgentTriggerType[] = ['persona', 'schedule', 'http', 'manual', 'event'];
 
 	const triggerLabels: Record<AgentTriggerType, string> = {
 		persona: 'Persona (chat)',
 		schedule: 'Schedule',
 		http: 'HTTP',
-		manual: 'Manual'
+		manual: 'Manual',
+		event: 'Event'
+	};
+
+	const eventLabels: Record<AgentEventName, string> = {
+		'memory.changed': 'Memory created/updated',
+		'chat.created': 'Chat created',
+		'chat.message_completed': 'Chat message completed'
 	};
 
 	// svelte-ignore state_referenced_locally
@@ -46,6 +54,8 @@
 		modelValue: agent?.providerId && agent?.modelId ? `${agent.providerId}/${agent.modelId}` : '',
 		triggerType: (agent?.triggerType ?? 'manual') as AgentTriggerType,
 		cron: agent?.triggerConfig.cron ?? '',
+		event: (agent?.triggerConfig.event ?? 'memory.changed') as AgentEventName,
+		every: String(agent?.triggerConfig.every ?? 1) as string | number,
 		instructions: agent?.triggerConfig.instructions ?? '',
 		restrictTools: agent?.toolAllowlist != null,
 		allowlist: [...(agent?.toolAllowlist ?? [])],
@@ -87,6 +97,14 @@
 				return;
 			}
 		}
+		let every: number | null = null;
+		if (form.triggerType === 'event') {
+			every = Number(String(form.every ?? '').trim());
+			if (!Number.isInteger(every) || every < 1 || every > 1000) {
+				toast.error('Occurrence interval must be an integer between 1 and 1000');
+				return;
+			}
+		}
 		busy = true;
 		try {
 			const [providerId, ...rest] = form.modelValue.split('/');
@@ -104,7 +122,13 @@
 						? { cron: form.cron.trim() }
 						: form.triggerType === 'persona'
 							? {}
-							: { instructions: form.instructions.trim() },
+							: form.triggerType === 'event'
+								? {
+										event: form.event,
+										every: every ?? 1,
+										...(form.instructions.trim() ? { instructions: form.instructions.trim() } : {})
+									}
+								: { instructions: form.instructions.trim() },
 				maxSteps,
 				enabled: form.enabled
 			};
@@ -240,7 +264,33 @@
 					/>
 					<p class="text-sm text-muted-foreground">5-field cron in server TZ (e.g. */30 * * * *)</p>
 				</div>
-			{:else if form.triggerType === 'http' || form.triggerType === 'manual'}
+			{:else if form.triggerType === 'http' || form.triggerType === 'manual' || form.triggerType === 'event'}
+				{#if form.triggerType === 'event'}
+					<div class="flex flex-col gap-2">
+						<Label>Event</Label>
+						<Select.Root type="single" bind:value={form.event} disabled={readonly}>
+							<Select.Trigger class="w-full">
+								{eventLabels[form.event]}
+							</Select.Trigger>
+							<Select.Content>
+								{#each AGENT_EVENT_NAMES as option (option)}
+									<Select.Item value={option}>{eventLabels[option]}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+					<div class="flex flex-col gap-2">
+						<Label for="agent-every">Run on every Nth occurrence</Label>
+						<Input
+							id="agent-every"
+							type="number"
+							min={1}
+							max={1000}
+							bind:value={form.every}
+							disabled={readonly}
+						/>
+					</div>
+				{/if}
 				<div class="flex flex-col gap-2">
 					<Label for="agent-instructions">Run instructions</Label>
 					<Textarea

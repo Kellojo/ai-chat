@@ -74,6 +74,9 @@
 				<Table.Row>
 					<Table.Head>Status</Table.Head>
 					<Table.Head>Trigger</Table.Head>
+					{#if data.showUser}
+						<Table.Head>User</Table.Head>
+					{/if}
 					<Table.Head>Started</Table.Head>
 					<Table.Head>Duration</Table.Head>
 					<Table.Head>Error</Table.Head>
@@ -97,6 +100,11 @@
 						<Table.Cell>
 							<Badge variant="secondary">{run.trigger}</Badge>
 						</Table.Cell>
+						{#if data.showUser}
+							<Table.Cell class="whitespace-nowrap text-muted-foreground">
+								{data.users[run.userId] ?? run.userId}
+							</Table.Cell>
+						{/if}
 						<Table.Cell class="whitespace-nowrap text-muted-foreground">
 							{formatDateTime(run.startedAt, data.timeFormat)}
 						</Table.Cell>
@@ -122,7 +130,7 @@
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={6} class="text-center text-muted-foreground">
+						<Table.Cell colspan={data.showUser ? 7 : 6} class="text-center text-muted-foreground">
 							No runs yet.
 						</Table.Cell>
 					</Table.Row>

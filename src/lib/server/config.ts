@@ -21,7 +21,6 @@ const schema = z.object({
 	OIDC_CLIENT_SECRET: z.string().optional(),
 	OIDC_SCOPES: z.string().default('openid profile email'),
 	AUTO_PROMOTE_FIRST_USER: boolFromString('true'),
-	MEMORY_EXTRACT_SCHEDULE: z.string().default('*/15 * * * *'),
 	LM_STUDIO_BASE_URL: z.string().default('http://localhost:1234'),
 	AGENT_MAX_STEPS: z.coerce.number().int().min(1).default(25),
 	MAX_ATTACHMENT_SIZE_MB: z.coerce.number().int().min(1).default(50),

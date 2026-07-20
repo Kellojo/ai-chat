@@ -12,6 +12,7 @@ import {
 	toPublicWithOverrides
 } from '$lib/server/db/repo/agents.js';
 import { findModel } from '$lib/server/db/repo/models.js';
+import { AGENT_EVENT_NAMES } from '$lib/types.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = ({ locals, url }) => {
@@ -27,7 +28,9 @@ export const GET: RequestHandler = ({ locals, url }) => {
 
 const triggerConfigSchema = z.object({
 	cron: z.string().optional(),
-	instructions: z.string().max(4000).optional()
+	instructions: z.string().max(4000).optional(),
+	event: z.enum(AGENT_EVENT_NAMES).optional(),
+	every: z.number().int().min(1).max(1000).optional()
 });
 
 const createSchema = z.object({
@@ -38,7 +41,7 @@ const createSchema = z.object({
 	modelId: z.string().nullable().optional(),
 	skillNames: z.array(z.string()).max(50).default([]),
 	toolAllowlist: z.array(z.string()).max(200).nullable().default(null),
-	triggerType: z.enum(['persona', 'schedule', 'http', 'manual']),
+	triggerType: z.enum(['persona', 'schedule', 'http', 'manual', 'event']),
 	triggerConfig: triggerConfigSchema.default({}),
 	maxSteps: z.number().int().min(1).max(100).nullable().default(null),
 	enabled: z.boolean().default(true)
@@ -57,6 +60,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (!isValidCron(input.triggerConfig.cron)) {
 			error(400, { message: 'Invalid cron expression' });
 		}
+	}
+	if (input.triggerType === 'event' && !input.triggerConfig.event) {
+		error(400, { message: 'Event trigger requires an event name' });
 	}
 	if ((input.providerId == null) !== (input.modelId == null)) {
 		error(400, { message: 'providerId and modelId must be provided together' });

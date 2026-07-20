@@ -59,8 +59,8 @@
 		<Card.Header>
 			<Card.Title>Memory extraction</Card.Title>
 			<Card.Description>
-				The built-in memory-extraction agent runs on a schedule and distills recent conversations
-				into long-term memory concepts. You can also trigger it manually.
+				The built-in memory-extraction agent runs automatically on every 5th new chat and distills
+				recent conversations into long-term memory concepts. You can also trigger it manually.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="flex items-center gap-2">

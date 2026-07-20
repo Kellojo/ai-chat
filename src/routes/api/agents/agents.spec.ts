@@ -112,6 +112,47 @@ describe('POST /api/agents validation', () => {
 		expect(res.status).toBe(201);
 		expect(res.body.agent.nextRunAt).toBeNull();
 	});
+
+	it('rejects an event trigger without an event name', async () => {
+		const res = await call(POST, {
+			user: u1,
+			body: { name: 'a', systemPrompt: 'x', triggerType: 'event' }
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it('rejects an event trigger with an unknown event name', async () => {
+		const res = await call(POST, {
+			user: u1,
+			body: {
+				name: 'a',
+				systemPrompt: 'x',
+				triggerType: 'event',
+				triggerConfig: { event: 'memory.deleted' }
+			}
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it('creates a valid event agent with nextRunAt null', async () => {
+		const res = await call<{ agent: import('$lib/types.js').Agent }>(POST, {
+			user: u1,
+			body: {
+				name: 'a',
+				systemPrompt: 'x',
+				triggerType: 'event',
+				triggerConfig: { event: 'memory.changed', every: 5, instructions: 'Clean up.' }
+			}
+		});
+		expect(res.status).toBe(201);
+		expect(res.body.agent.triggerType).toBe('event');
+		expect(res.body.agent.triggerConfig).toEqual({
+			event: 'memory.changed',
+			every: 5,
+			instructions: 'Clean up.'
+		});
+		expect(res.body.agent.nextRunAt).toBeNull();
+	});
 });
 
 describe('agent ownership scoping', () => {
@@ -210,7 +251,12 @@ describe('agent ownership scoping', () => {
 			systemPrompt: 'x',
 			triggerType: 'manual'
 		});
-		expect((await call(GET_RUNS, { user: u2, params: { id: builtin.id } })).status).toBe(403);
+		const scoped = await call<{ runs: unknown[] }>(GET_RUNS, {
+			user: u2,
+			params: { id: builtin.id }
+		});
+		expect(scoped.status).toBe(200);
+		expect(scoped.body.runs).toEqual([]);
 		const res = await call<{ runs: unknown[] }>(GET_RUNS, {
 			user: admin,
 			params: { id: builtin.id }
@@ -254,6 +300,40 @@ describe('PATCH /api/agents/[id]', () => {
 			user: u1,
 			params: { id: agent.id },
 			body: { triggerType: 'schedule', triggerConfig: { cron: 'nope' } }
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it('patches an agent to an event trigger', async () => {
+		const agent = createAgent(getDb(), 'u1', {
+			name: 'a',
+			systemPrompt: 'x',
+			triggerType: 'schedule',
+			triggerConfig: { cron: '*/5 * * * *' },
+			nextRunAt: Date.now() + 60_000
+		});
+		const res = await call<{ agent: import('$lib/types.js').Agent }>(PATCH, {
+			user: u1,
+			params: { id: agent.id },
+			body: { triggerType: 'event', triggerConfig: { event: 'chat.created', every: 2 } }
+		});
+		expect(res.status).toBe(200);
+		expect(res.body.agent.triggerType).toBe('event');
+		expect(res.body.agent.triggerConfig.event).toBe('chat.created');
+		expect(res.body.agent.triggerConfig.every).toBe(2);
+		expect(res.body.agent.nextRunAt).toBeNull();
+	});
+
+	it('rejects patching to an event trigger without an event name', async () => {
+		const agent = createAgent(getDb(), 'u1', {
+			name: 'a',
+			systemPrompt: 'x',
+			triggerType: 'manual'
+		});
+		const res = await call(PATCH, {
+			user: u1,
+			params: { id: agent.id },
+			body: { triggerType: 'event' }
 		});
 		expect(res.status).toBe(400);
 	});

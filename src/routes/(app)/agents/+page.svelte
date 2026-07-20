@@ -34,6 +34,21 @@
 		};
 	});
 
+	function ordinal(n: number): string {
+		const mod100 = n % 100;
+		if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+		switch (n % 10) {
+			case 1:
+				return `${n}st`;
+			case 2:
+				return `${n}nd`;
+			case 3:
+				return `${n}rd`;
+			default:
+				return `${n}th`;
+		}
+	}
+
 	async function runNow(agent: Agent) {
 		if (runBusy) return;
 		runBusy = agent.id;
@@ -143,6 +158,13 @@
 								{:else}
 									<Badge variant="secondary">{agent.triggerType}</Badge>
 								{/if}
+							{:else if agent.triggerType === 'event'}
+								<Badge variant="secondary"
+									>{@const every = agent.triggerConfig.every ?? 1}
+									{every > 1
+										? `Every ${ordinal(every)} ${agent.triggerConfig.event}`
+										: `On ${agent.triggerConfig.event}`}</Badge
+								>
 							{:else}
 								<Badge variant="secondary">{agent.triggerType}</Badge>
 							{/if}

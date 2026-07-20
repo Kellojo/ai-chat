@@ -63,7 +63,14 @@ export function getAgentRun(db: Db, id: string): AgentRunRow | undefined {
 	return db.prepare('SELECT * FROM agent_runs WHERE id = ?').get(id) as AgentRunRow | undefined;
 }
 
-export function listAgentRuns(db: Db, agentId: string, limit = 50): AgentRunRow[] {
+export function listAgentRuns(db: Db, agentId: string, limit = 50, userId?: string): AgentRunRow[] {
+	if (userId !== undefined) {
+		return db
+			.prepare(
+				'SELECT * FROM agent_runs WHERE agent_id = ? AND user_id = ? ORDER BY started_at DESC LIMIT ?'
+			)
+			.all(agentId, userId, limit) as AgentRunRow[];
+	}
 	return db
 		.prepare('SELECT * FROM agent_runs WHERE agent_id = ? ORDER BY started_at DESC LIMIT ?')
 		.all(agentId, limit) as AgentRunRow[];

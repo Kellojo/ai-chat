@@ -62,7 +62,8 @@ export async function tickAgents(
 			if (agent.user_id === null) {
 				const overrides = listOverridesForAgent(db, agent.id);
 				for (const userId of listActiveUserIds(db, agent.last_run_at ?? 0)) {
-					if (overrides.get(userId) === false) continue;
+					const enabled = overrides.get(userId) ?? agent.enabled === 1;
+					if (!enabled) continue;
 					await run(agent.id, userId);
 				}
 			} else {

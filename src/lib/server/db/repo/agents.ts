@@ -116,7 +116,7 @@ export function listDueScheduleAgents(db: Db, now: number): AgentRow[] {
 	return db
 		.prepare(
 			`SELECT * FROM agents
-			 WHERE trigger_type = 'schedule' AND enabled = 1
+			 WHERE trigger_type = 'schedule' AND (enabled = 1 OR user_id IS NULL)
 			   AND next_run_at IS NOT NULL AND next_run_at <= ?
 			   AND NOT EXISTS (
 			       SELECT 1 FROM agent_runs
@@ -124,6 +124,36 @@ export function listDueScheduleAgents(db: Db, now: number): AgentRow[] {
 			   )`
 		)
 		.all(now) as AgentRow[];
+}
+
+export function listEventAgents(db: Db, event: string): AgentRow[] {
+	return db
+		.prepare(
+			`SELECT * FROM agents
+			 WHERE trigger_type = 'event' AND (enabled = 1 OR user_id IS NULL)
+			   AND json_extract(trigger_config, '$.event') = ?`
+		)
+		.all(event) as AgentRow[];
+}
+
+export function incrementAgentEventCounter(
+	db: Db,
+	agentId: string,
+	userId: string,
+	event: string
+): number {
+	db.prepare(
+		`INSERT INTO agent_event_counters (agent_id, user_id, event, count)
+		 VALUES (?, ?, ?, 1)
+		 ON CONFLICT(agent_id, user_id, event)
+		 DO UPDATE SET count = count + 1`
+	).run(agentId, userId, event);
+	const row = db
+		.prepare(
+			'SELECT count FROM agent_event_counters WHERE agent_id = ? AND user_id = ? AND event = ?'
+		)
+		.get(agentId, userId, event) as { count: number };
+	return row.count;
 }
 
 export function setAgentOverride(db: Db, userId: string, agentId: string, enabled: boolean): void {

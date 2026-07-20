@@ -127,6 +127,28 @@ describe('tickAgents', () => {
 		expect(runAgentFn).toHaveBeenCalledWith(agent.id, 'u1');
 	});
 
+	it('fans out a row-disabled built-in only to users with an enabling override', async () => {
+		db.prepare(
+			'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u2\', \'d@e.f\', \'D\', 0, 0, 0, \'user\')'
+		).run();
+		createConversation(db, 'u1', { title: 'a' });
+		createConversation(db, 'u2', { title: 'b' });
+		const agent = createAgent(db, null, {
+			name: 'builtin',
+			systemPrompt: 'x',
+			triggerType: 'schedule',
+			triggerConfig: { cron: '* * * * *' },
+			enabled: false,
+			nextRunAt: Date.now() - 1000
+		});
+		setAgentOverride(db, 'u2', agent.id, true);
+		const runAgentFn = vi.fn().mockResolvedValue(undefined);
+		const started = await tickAgents(db, runAgentFn);
+		expect(started).toBe(1);
+		expect(runAgentFn).toHaveBeenCalledTimes(1);
+		expect(runAgentFn).toHaveBeenCalledWith(agent.id, 'u2');
+	});
+
 	it('counts a built-in agent as started even with no active users', async () => {
 		const agent = createAgent(db, null, {
 			name: 'builtin',

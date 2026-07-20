@@ -21,6 +21,7 @@ import { getAttachment, linkAttachmentsToMessage } from '../db/repo/attachments.
 import { getAgent } from '../db/repo/agents.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
+import { emitAgentEvent } from '../agents/events.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
 import { buildTools } from '../tools/registry.js';
@@ -200,6 +201,11 @@ export async function handleChatRequest(
 						parts: responseMessage.parts,
 						status,
 						error: errorText
+					});
+				}
+				if (status === 'complete') {
+					void emitAgentEvent('chat.message_completed', userId, {
+						conversationId: conversation.id
 					});
 				}
 				if (conversation.title === '') {
