@@ -156,6 +156,10 @@
 	}
 </script>
 
+{#snippet required()}
+	<span class="text-destructive">*</span>
+{/snippet}
+
 <div class="flex flex-col gap-4">
 	<Card.Root>
 		<Card.Header>
@@ -165,7 +169,7 @@
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-4">
 			<div class="flex flex-col gap-2">
-				<Label for="agent-name">Name</Label>
+				<Label for="agent-name">Name {@render required()}</Label>
 				<Input
 					id="agent-name"
 					bind:value={form.name}
@@ -185,7 +189,7 @@
 				/>
 			</div>
 			<div class="flex flex-col gap-2">
-				<Label for="agent-system-prompt">System prompt</Label>
+				<Label for="agent-system-prompt">System prompt {@render required()}</Label>
 				<Textarea
 					id="agent-system-prompt"
 					bind:value={form.systemPrompt}
@@ -209,7 +213,7 @@
 					<Select.Trigger class="w-full">
 						{modelLabel}
 					</Select.Trigger>
-					<Select.Content>
+					<Select.Content class="max-h-[min(24rem,var(--bits-select-content-available-height))]">
 						<Select.Item value="">Default chat model</Select.Item>
 						{#each models as model (model.id)}
 							<Select.Item value={`${model.providerId}/${model.modelId}`}>
@@ -255,7 +259,7 @@
 			</div>
 			{#if form.triggerType === 'schedule'}
 				<div class="flex flex-col gap-2">
-					<Label for="agent-cron">Cron schedule</Label>
+					<Label for="agent-cron">Cron schedule {@render required()}</Label>
 					<Input
 						id="agent-cron"
 						bind:value={form.cron}
@@ -267,7 +271,7 @@
 			{:else if form.triggerType === 'http' || form.triggerType === 'manual' || form.triggerType === 'event'}
 				{#if form.triggerType === 'event'}
 					<div class="flex flex-col gap-2">
-						<Label>Event</Label>
+						<Label>Event {@render required()}</Label>
 						<Select.Root type="single" bind:value={form.event} disabled={readonly}>
 							<Select.Trigger class="w-full">
 								{eventLabels[form.event]}

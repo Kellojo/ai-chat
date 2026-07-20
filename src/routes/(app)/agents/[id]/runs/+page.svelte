@@ -7,7 +7,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { formatDateTime } from '$lib/datetime.js';
+	import { formatDateTime, formatTimeAgo } from '$lib/datetime.js';
 	import type { AgentRun } from '$lib/types.js';
 	import type { PageData } from './$types';
 
@@ -106,7 +106,9 @@
 							</Table.Cell>
 						{/if}
 						<Table.Cell class="whitespace-nowrap text-muted-foreground">
-							{formatDateTime(run.startedAt, data.timeFormat)}
+							<span title={formatDateTime(run.startedAt, data.timeFormat)}>
+								{formatTimeAgo(run.startedAt)}
+							</span>
 						</Table.Cell>
 						<Table.Cell class="text-muted-foreground">{duration(run)}</Table.Cell>
 						<Table.Cell class="max-w-64 truncate text-muted-foreground" title={run.error ?? ''}>

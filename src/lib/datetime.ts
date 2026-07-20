@@ -20,6 +20,18 @@ export function formatDateTime(timestamp: number, format: TimeFormat): string {
 	}).format(timestamp);
 }
 
+export function formatTimeAgo(timestamp: number, now = Date.now()): string {
+	const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+	if (seconds < 60) return 'just now';
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes} min ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours} h ago`;
+	const days = Math.floor(hours / 24);
+	if (days < 30) return `${days} d ago`;
+	return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(timestamp);
+}
+
 export function formatMessageTime(timestamp: number, format: TimeFormat, now = new Date()): string {
 	const date = new Date(timestamp);
 	const sameDay =

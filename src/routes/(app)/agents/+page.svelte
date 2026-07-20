@@ -11,7 +11,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { describeCron } from '$lib/cron.js';
-	import { formatDateTime } from '$lib/datetime.js';
+	import { formatDateTime, formatTimeAgo } from '$lib/datetime.js';
 	import type { Agent } from '$lib/types.js';
 	import type { PageData } from './$types';
 
@@ -185,7 +185,13 @@
 							{agent.nextRunAt ? formatDateTime(agent.nextRunAt, data.timeFormat) : '—'}
 						</Table.Cell>
 						<Table.Cell class="whitespace-nowrap text-muted-foreground">
-							{agent.lastRunAt ? formatDateTime(agent.lastRunAt, data.timeFormat) : '—'}
+							{#if agent.lastRunAt}
+								<span title={formatDateTime(agent.lastRunAt, data.timeFormat)}>
+									{formatTimeAgo(agent.lastRunAt)}
+								</span>
+							{:else}
+								—
+							{/if}
 						</Table.Cell>
 						<Table.Cell class="text-right whitespace-nowrap">
 							<DropdownMenu.Root>
