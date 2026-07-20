@@ -55,7 +55,10 @@ export async function startAgentRun(
 	if (agent.provider_id && agent.model_id) {
 		ref = { providerId: agent.provider_id, modelId: agent.model_id };
 	} else {
-		const roleDefault = findRoleModel(db, 'chat');
+		const roleDefault =
+			agent.user_id === null
+				? (findRoleModel(db, 'memory') ?? findRoleModel(db, 'chat'))
+				: findRoleModel(db, 'chat');
 		if (!roleDefault) {
 			throw new Error('Agent has no model configured and no default chat model exists');
 		}
@@ -83,7 +86,9 @@ export async function startAgentRun(
 	const instructions =
 		input.instructions ??
 		triggerConfig.instructions ??
-		`Execute your task now. Trigger: ${input.trigger}.`;
+		(agent.user_id === null
+			? `Review conversations updated since ${new Date(agent.last_run_at ?? 0).toISOString()} and distill durable long-term memory from them. Use search_chats with the "since" parameter to list them, read_chat to review their contents, list_concepts/search_memory to check what already exists, then create_concept/update_concept to persist.`
+			: `Execute your task now. Trigger: ${input.trigger}.`);
 	const uiUserMessage: UIMessage = {
 		id: randomUUID(),
 		role: 'user',
@@ -106,7 +111,10 @@ export async function startAgentRun(
 		workspaceDir,
 		agentAllowlist: agent.tool_allowlist
 			? (JSON.parse(agent.tool_allowlist) as string[])
-			: undefined
+			: undefined,
+		author: agent.user_id === null ? 'system' : `agent:${agent.id}`,
+		conversationId: conversation.id,
+		agentRunId: run.id
 	});
 
 	const controller = new AbortController();

@@ -68,6 +68,8 @@
 		"better-auth": "^1.6.23",
 		"better-sqlite3": "^12.11.1",
 		"cron-parser": "^5.6.2",
+		"diff": "^9.0.0",
+		"gray-matter": "^4.0.3",
 		"luxon": "^3.7.2",
 		"mode-watcher": "^1.1.0",
 		"runed": "^0.37.1",

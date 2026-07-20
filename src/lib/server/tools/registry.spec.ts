@@ -25,11 +25,21 @@ describe('tools registry', () => {
 	it('builds tools from all enabled builtin servers in chat mode', async () => {
 		const built = await buildTools({ userId: 'u1', mode: 'chat', memoryEnabled: true });
 		const names = Object.keys(built.tools);
-		for (const expected of ['fetch', 'now', 'search_chats', 'read_document', 'ls', 'get_setting']) {
+		for (const expected of [
+			'fetch',
+			'now',
+			'search_chats',
+			'read_document',
+			'ls',
+			'get_setting',
+			'search_memory',
+			'create_concept'
+		]) {
 			expect(names).toContain(expected);
 		}
 		expect(built.toolToServer.now).toBe('datetime');
 		expect(built.toolToServer.ls).toBe('bash');
+		expect(built.toolToServer.search_memory).toBe('memory');
 		await built.close();
 	});
 
@@ -62,9 +72,10 @@ describe('tools registry', () => {
 		await built.close();
 	});
 
-	it('tolerates memoryEnabled=false (memory server arrives in M6)', async () => {
+	it('excludes memory tools when memoryEnabled=false', async () => {
 		const built = await buildTools({ userId: 'u1', mode: 'chat', memoryEnabled: false });
 		expect(Object.keys(built.tools)).toContain('now');
+		expect(Object.keys(built.tools)).not.toContain('search_memory');
 		await built.close();
 	});
 

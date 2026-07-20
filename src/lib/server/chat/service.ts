@@ -152,7 +152,8 @@ export async function handleChatRequest(
 		workspaceDir: conversationWorkspace(conversation.id),
 		agentAllowlist: agent?.tool_allowlist
 			? (JSON.parse(agent.tool_allowlist) as string[])
-			: undefined
+			: undefined,
+		conversationId: conversation.id
 	});
 
 	const controller = new AbortController();

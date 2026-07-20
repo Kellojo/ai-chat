@@ -8,6 +8,7 @@ import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
 import { seedBuiltinProviders } from '$lib/server/db/seed.js';
+import { reconcileMemoryFts } from '$lib/server/memory/fts.js';
 
 if (!building) {
 	seedBuiltinProviders(getDb());
@@ -15,6 +16,10 @@ if (!building) {
 	const interrupted = failRunningAgentRuns(getDb());
 	if (interrupted > 0) {
 		console.warn(`Marked ${interrupted} interrupted agent run(s) as failed`);
+	}
+	const { upserted, removed } = reconcileMemoryFts(getDb());
+	if (upserted > 0 || removed > 0) {
+		console.log(`Memory index reconciled: ${upserted} upserted, ${removed} removed`);
 	}
 	startAgentScheduler(getDb());
 }

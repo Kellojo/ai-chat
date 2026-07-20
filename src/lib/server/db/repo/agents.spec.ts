@@ -6,6 +6,7 @@ import {
 	createAgent,
 	deleteAgent,
 	getAgent,
+	listActiveUserIds,
 	listAgents,
 	listDueScheduleAgents,
 	listPersonaAgents,
@@ -13,6 +14,7 @@ import {
 	toPublic,
 	updateAgent
 } from './agents.js';
+import { createConversation, softDeleteConversation } from './conversations.js';
 
 let db: Db;
 
@@ -77,7 +79,7 @@ describe('agents repo', () => {
 		expect(listPersonaAgents(db, 'u1').map((a) => a.id)).toEqual([persona.id]);
 	});
 
-	it('listDueScheduleAgents returns only due, enabled, user-owned schedule agents', () => {
+	it('listDueScheduleAgents returns due, enabled schedule agents including built-ins', () => {
 		const past = Date.now() - 1000;
 		const due = createAgent(db, 'u1', {
 			name: 'due',
@@ -99,14 +101,29 @@ describe('agents repo', () => {
 			nextRunAt: past,
 			enabled: false
 		});
-		createAgent(db, null, {
+		const builtin = createAgent(db, null, {
 			name: 'builtin',
 			systemPrompt: 'x',
 			triggerType: 'schedule',
 			nextRunAt: past
 		});
 		createAgent(db, 'u1', { name: 'manual', systemPrompt: 'x', triggerType: 'manual' });
-		expect(listDueScheduleAgents(db, Date.now()).map((a) => a.id)).toEqual([due.id]);
+		expect(listDueScheduleAgents(db, Date.now()).map((a) => a.id)).toEqual([due.id, builtin.id]);
+	});
+
+	it('listActiveUserIds returns distinct users with recent, non-deleted conversations', () => {
+		db.prepare(
+			'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u2\', \'d@e.f\', \'D\', 0, 0, 0, \'user\')'
+		).run();
+		db.prepare(
+			'INSERT INTO "user" (id, email, name, "emailVerified", "createdAt", "updatedAt", role) VALUES (\'u3\', \'g@h.i\', \'G\', 0, 0, 0, \'user\')'
+		).run();
+		createConversation(db, 'u1', { title: 'a' });
+		createConversation(db, 'u1', { title: 'b' });
+		createConversation(db, 'u2', { title: 'c' });
+		softDeleteConversation(db, 'u3', createConversation(db, 'u3', { title: 'd' }).id);
+		expect(listActiveUserIds(db, 0)).toEqual(['u1', 'u2']);
+		expect(listActiveUserIds(db, Date.now() + 1000)).toEqual([]);
 	});
 
 	it('listDueScheduleAgents excludes agents with a running run', () => {

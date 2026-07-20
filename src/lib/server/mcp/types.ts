@@ -3,4 +3,7 @@ export interface CallerContext {
 	role: string;
 	workspaceDir: string | null;
 	documentsDir: string;
+	author?: string;
+	conversationId?: string | null;
+	agentRunId?: string | null;
 }

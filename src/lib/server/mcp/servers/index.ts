@@ -6,6 +6,7 @@ import { createChatSearchServer } from './chat-search.js';
 import { createDocumentsServer } from './documents.js';
 import { createBashServer } from './bash.js';
 import { createSettingsServer } from './settings.js';
+import { createMemoryServer } from './memory.js';
 
 export type BuiltinServerFactory = (ctx: CallerContext) => McpServer;
 
@@ -15,5 +16,6 @@ export const BUILTIN_SERVERS: Record<string, BuiltinServerFactory> = {
 	'chat-search': createChatSearchServer,
 	documents: createDocumentsServer,
 	bash: createBashServer,
-	settings: createSettingsServer
+	settings: createSettingsServer,
+	memory: createMemoryServer
 };

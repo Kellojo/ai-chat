@@ -13,6 +13,9 @@ export interface BuildToolsInput {
 	memoryEnabled: boolean;
 	workspaceDir?: string | null;
 	agentAllowlist?: string[];
+	author?: string;
+	conversationId?: string | null;
+	agentRunId?: string | null;
 }
 
 export interface BuiltTools {
@@ -29,7 +32,10 @@ export async function buildTools(input: BuildToolsInput): Promise<BuiltTools> {
 		userId: input.userId,
 		role: user?.role ?? 'user',
 		workspaceDir: input.workspaceDir ?? null,
-		documentsDir: path.resolve(config.DOCUMENTS_VOLUME)
+		documentsDir: path.resolve(config.DOCUMENTS_VOLUME),
+		author: input.author,
+		conversationId: input.conversationId,
+		agentRunId: input.agentRunId
 	};
 	const rows = listEnabledMcpServers(db, input.mode).filter(
 		(row) => input.memoryEnabled || row.name !== 'memory'

@@ -70,6 +70,16 @@ export function listConversations(db: Db, userId: string): ConversationRow[] {
 		.all(userId) as ConversationRow[];
 }
 
+export function listConversationsSince(db: Db, userId: string, since: number): ConversationRow[] {
+	return db
+		.prepare(
+			`SELECT * FROM conversations
+			 WHERE user_id = ? AND kind = 'chat' AND deleted_at IS NULL AND updated_at >= ?
+			 ORDER BY updated_at DESC`
+		)
+		.all(userId, since) as ConversationRow[];
+}
+
 export function getConversation(db: Db, userId: string, id: string): ConversationRow | undefined {
 	return db
 		.prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ? AND deleted_at IS NULL')

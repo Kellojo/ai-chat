@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import BotIcon from '@lucide/svelte/icons/bot';
+	import BrainIcon from '@lucide/svelte/icons/brain';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
@@ -38,12 +39,22 @@
 	let renameText = $state('');
 	let deleteTarget = $state<Conversation | null>(null);
 	let agentStats = $state<{ running: number; total: number } | null>(null);
+	let memoryCount = $state<number | null>(null);
 
 	function refreshAgentStats() {
 		fetch('/api/agents/stats')
 			.then((r) => (r.ok ? r.json() : null))
 			.then((d) => {
 				if (d) agentStats = d;
+			})
+			.catch(() => {});
+	}
+
+	function refreshMemoryCount() {
+		fetch('/api/memory/stats')
+			.then((r) => (r.ok ? r.json() : null))
+			.then((d) => {
+				if (d) memoryCount = d.count;
 			})
 			.catch(() => {});
 	}
@@ -64,10 +75,12 @@
 
 	onMount(() => {
 		refreshAgentStats();
+		refreshMemoryCount();
 		refreshActiveChats().catch(() => {});
 		const refreshIfVisible = () => {
 			if (document.visibilityState === 'visible') {
 				refreshAgentStats();
+				refreshMemoryCount();
 				refreshActiveChats().catch(() => {});
 			}
 		};
@@ -209,6 +222,26 @@
 					{/if}
 					{agentStats.running}/{agentStats.total}
 				</span>
+			{/if}
+		</a>
+	</div>
+
+	<div class="px-2 pb-1">
+		<a
+			href={resolve('/memory')}
+			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+				'/memory'
+			)
+				? 'bg-accent text-accent-foreground'
+				: 'text-muted-foreground hover:bg-accent/50'}"
+		>
+			<BrainIcon class="size-4" />
+			Memory
+			{#if memoryCount !== null}
+				<span
+					class="ml-auto text-xs text-muted-foreground tabular-nums"
+					title="{memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}">{memoryCount}</span
+				>
 			{/if}
 		</a>
 	</div>

@@ -1,7 +1,7 @@
 import { CronExpressionParser } from 'cron-parser';
 import { config } from '../config.js';
 import { getDb, type Db } from '../db/index.js';
-import { claimAgentRun, listDueScheduleAgents } from '../db/repo/agents.js';
+import { claimAgentRun, listActiveUserIds, listDueScheduleAgents } from '../db/repo/agents.js';
 import { gcAgentWorkspaces } from '../workspaces.js';
 import { startAgentRun } from './runner.js';
 
@@ -54,7 +54,13 @@ export async function tickAgents(
 		inFlight.add(agent.id);
 		started++;
 		try {
-			await run(agent.id, agent.user_id!);
+			if (agent.user_id === null) {
+				for (const userId of listActiveUserIds(db, agent.last_run_at ?? 0)) {
+					await run(agent.id, userId);
+				}
+			} else {
+				await run(agent.id, agent.user_id);
+			}
 		} catch (e) {
 			console.error(`Scheduled run of agent ${agent.id} failed`, e);
 		} finally {

@@ -118,13 +118,24 @@ export function listDueScheduleAgents(db: Db, now: number): AgentRow[] {
 			`SELECT * FROM agents
 			 WHERE trigger_type = 'schedule' AND enabled = 1
 			   AND next_run_at IS NOT NULL AND next_run_at <= ?
-			   AND user_id IS NOT NULL
 			   AND NOT EXISTS (
 			       SELECT 1 FROM agent_runs
 			       WHERE agent_runs.agent_id = agents.id AND agent_runs.status = 'running'
 			   )`
 		)
 		.all(now) as AgentRow[];
+}
+
+export function listActiveUserIds(db: Db, since: number): string[] {
+	return (
+		db
+			.prepare(
+				`SELECT DISTINCT user_id FROM conversations
+				 WHERE updated_at > ? AND deleted_at IS NULL
+				 ORDER BY user_id`
+			)
+			.all(since) as { user_id: string }[]
+	).map((row) => row.user_id);
 }
 
 export interface UpdateAgentInput {

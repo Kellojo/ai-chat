@@ -10,6 +10,7 @@
 		{ href: '/settings/providers', label: 'Providers', adminOnly: true },
 		{ href: '/settings/models', label: 'Models', adminOnly: true },
 		{ href: '/settings/mcp', label: 'MCP', adminOnly: true },
+		{ href: '/settings/memory', label: 'Memory', adminOnly: false },
 		{ href: '/settings/defaults', label: 'Model Defaults', adminOnly: true }
 	] as const;
 
