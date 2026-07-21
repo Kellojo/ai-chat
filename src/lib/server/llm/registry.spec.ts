@@ -80,11 +80,47 @@ describe('llm registry', () => {
 			baseUrl: 'http://localhost:1234/v1',
 			apiKey: 'sk-local'
 		});
-		const ids = await registry.fetchProviderModels(p.id);
-		expect(ids).toEqual(['m1', 'm2']);
+		const fetched = await registry.fetchProviderModels(p.id);
+		expect(fetched.map((m) => m.id)).toEqual(['m1', 'm2']);
 		const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
 		expect(url).toBe('http://localhost:1234/v1/models');
 		expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sk-local');
+	});
+
+	it('fetchProviderModels parses OpenRouter-style pricing into USD per 1M tokens', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				Promise.resolve(
+					new Response(
+						JSON.stringify({
+							data: [
+								{
+									id: 'or-model',
+									pricing: { prompt: '0.00000015', completion: '0.0000006' }
+								},
+								{ id: 'free-model', pricing: { prompt: '0', completion: '0' } },
+								{ id: 'plain-model' }
+							]
+						}),
+						{ status: 200 }
+					)
+				)
+			)
+		);
+		const { db, providers, registry } = await loadModules();
+		const p = providers.createProvider(db, {
+			name: 'OR',
+			type: 'openai-compatible',
+			baseUrl: 'https://openrouter.ai/api/v1',
+			apiKey: 'sk-or'
+		});
+		const fetched = await registry.fetchProviderModels(p.id);
+		expect(fetched).toEqual([
+			{ id: 'or-model', priceInput: 0.15, priceOutput: 0.6 },
+			{ id: 'free-model', priceInput: null, priceOutput: null },
+			{ id: 'plain-model', priceInput: null, priceOutput: null }
+		]);
 	});
 
 	it('fetchProviderModels requires a key for anthropic', async () => {

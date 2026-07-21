@@ -3,10 +3,13 @@ import { openDatabase, type Db } from '../index.js';
 import { createProvider } from './providers.js';
 import {
 	createModel,
+	findEnabledModelByModelId,
+	findModel,
 	findRoleModel,
 	listEnabledModels,
 	listRoleDefaults,
 	setRoleDefault,
+	updateModel,
 	upsertFetchedModels
 } from './models.js';
 
@@ -20,8 +23,49 @@ beforeEach(() => {
 
 describe('models repo', () => {
 	it('upsertFetchedModels inserts only missing models', () => {
-		expect(upsertFetchedModels(db, providerId, ['a', 'b'])).toEqual({ added: 2, total: 2 });
-		expect(upsertFetchedModels(db, providerId, ['b', 'c'])).toEqual({ added: 1, total: 2 });
+		expect(upsertFetchedModels(db, providerId, [{ id: 'a' }, { id: 'b' }])).toEqual({
+			added: 2,
+			total: 2
+		});
+		expect(upsertFetchedModels(db, providerId, [{ id: 'b' }, { id: 'c' }])).toEqual({
+			added: 1,
+			total: 2
+		});
+	});
+
+	it('upsertFetchedModels stores provider pricing without clobbering it when absent', () => {
+		upsertFetchedModels(db, providerId, [{ id: 'a', priceInput: 1.5, priceOutput: 6 }]);
+		let row = findModel(db, providerId, 'a')!;
+		expect(row.price_input).toBe(1.5);
+		expect(row.price_output).toBe(6);
+
+		upsertFetchedModels(db, providerId, [{ id: 'a' }]);
+		row = findModel(db, providerId, 'a')!;
+		expect(row.price_input).toBe(1.5);
+
+		upsertFetchedModels(db, providerId, [{ id: 'a', priceInput: 2 }]);
+		row = findModel(db, providerId, 'a')!;
+		expect(row.price_input).toBe(2);
+		expect(row.price_output).toBe(6);
+	});
+
+	it('updateModel sets and clears manual pricing', () => {
+		const m = createModel(db, { providerId, modelId: 'one' });
+		expect(m.price_input).toBeNull();
+
+		updateModel(db, m.id, { priceInput: 0.25, priceOutput: 1 });
+		let row = findModel(db, providerId, 'one')!;
+		expect(row.price_input).toBe(0.25);
+		expect(row.price_output).toBe(1);
+
+		updateModel(db, m.id, { displayName: 'One' });
+		row = findModel(db, providerId, 'one')!;
+		expect(row.price_input).toBe(0.25);
+
+		updateModel(db, m.id, { priceInput: null });
+		row = findModel(db, providerId, 'one')!;
+		expect(row.price_input).toBeNull();
+		expect(row.price_output).toBe(1);
 	});
 
 	it('setRoleDefault assigns one model per role and allows reuse across roles', () => {
@@ -51,5 +95,22 @@ describe('models repo', () => {
 		db.prepare('UPDATE providers SET enabled = 0 WHERE id = ?').run(providerId);
 		expect(findRoleModel(db, 'memory')).toBeUndefined();
 		expect(listEnabledModels(db)).toHaveLength(0);
+	});
+
+	it('findEnabledModelByModelId resolves across providers and skips disabled rows', () => {
+		expect(findEnabledModelByModelId(db, 'one')).toBeUndefined();
+
+		const m = createModel(db, { providerId, modelId: 'one' });
+		expect(findEnabledModelByModelId(db, 'one')!.id).toBe(m.id);
+
+		const otherProvider = createProvider(db, { name: 'A-first', type: 'openai-compatible' });
+		const other = createModel(db, { providerId: otherProvider.id, modelId: 'one' });
+		expect(findEnabledModelByModelId(db, 'one')!.id).toBe(other.id);
+
+		db.prepare('UPDATE models SET enabled = 0 WHERE id = ?').run(other.id);
+		expect(findEnabledModelByModelId(db, 'one')!.id).toBe(m.id);
+
+		db.prepare('UPDATE providers SET enabled = 0 WHERE id = ?').run(providerId);
+		expect(findEnabledModelByModelId(db, 'one')).toBeUndefined();
 	});
 });

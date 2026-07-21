@@ -11,6 +11,8 @@ export interface ModelRow {
 	display_name: string;
 	capabilities: string;
 	enabled: number;
+	price_input: number | null;
+	price_output: number | null;
 }
 
 export interface ChatModel {
@@ -20,6 +22,8 @@ export interface ChatModel {
 	displayName: string;
 	capabilities: string[];
 	enabled: boolean;
+	priceInput: number | null;
+	priceOutput: number | null;
 }
 
 export function toPublic(row: ModelRow): ChatModel {
@@ -29,7 +33,9 @@ export function toPublic(row: ModelRow): ChatModel {
 		modelId: row.model_id,
 		displayName: row.display_name,
 		capabilities: JSON.parse(row.capabilities) as string[],
-		enabled: row.enabled === 1
+		enabled: row.enabled === 1,
+		priceInput: row.price_input,
+		priceOutput: row.price_output
 	};
 }
 
@@ -51,6 +57,17 @@ export function listEnabledModels(db: Db): ModelRow[] {
 			 ORDER BY p.name, m.model_id`
 		)
 		.all() as ModelRow[];
+}
+
+export function findEnabledModelByModelId(db: Db, modelId: string): ModelRow | undefined {
+	return db
+		.prepare(
+			`SELECT m.* FROM models m
+			 JOIN providers p ON p.id = m.provider_id
+			 WHERE m.model_id = ? AND m.enabled = 1 AND p.enabled = 1
+			 ORDER BY p.name LIMIT 1`
+		)
+		.get(modelId) as ModelRow | undefined;
 }
 
 export function getModel(db: Db, id: string): ModelRow | undefined {
@@ -90,15 +107,22 @@ export interface UpdateModelInput {
 	displayName?: string;
 	capabilities?: string[];
 	enabled?: boolean;
+	priceInput?: number | null;
+	priceOutput?: number | null;
 }
 
 export function updateModel(db: Db, id: string, patch: UpdateModelInput): ModelRow | undefined {
 	const existing = getModel(db, id);
 	if (!existing) return undefined;
-	db.prepare('UPDATE models SET display_name = ?, capabilities = ?, enabled = ? WHERE id = ?').run(
+	db.prepare(
+		`UPDATE models SET display_name = ?, capabilities = ?, enabled = ?, price_input = ?, price_output = ?
+		 WHERE id = ?`
+	).run(
 		patch.displayName ?? existing.display_name,
 		patch.capabilities !== undefined ? JSON.stringify(patch.capabilities) : existing.capabilities,
 		patch.enabled !== undefined ? (patch.enabled ? 1 : 0) : existing.enabled,
+		patch.priceInput !== undefined ? patch.priceInput : existing.price_input,
+		patch.priceOutput !== undefined ? patch.priceOutput : existing.price_output,
 		id
 	);
 	return getModel(db, id);
@@ -137,19 +161,37 @@ export function findRoleModel(db: Db, role: ModelRole): ModelRow | undefined {
 		.get(role) as ModelRow | undefined;
 }
 
+export interface FetchedModel {
+	id: string;
+	priceInput?: number | null;
+	priceOutput?: number | null;
+}
+
 export function upsertFetchedModels(
 	db: Db,
 	providerId: string,
-	modelIds: string[]
+	fetched: FetchedModel[]
 ): { added: number; total: number } {
 	let added = 0;
 	db.transaction(() => {
-		for (const modelId of modelIds) {
-			if (!findModel(db, providerId, modelId)) {
-				createModel(db, { providerId, modelId });
+		for (const model of fetched) {
+			const existing = findModel(db, providerId, model.id);
+			if (!existing) {
+				const created = createModel(db, { providerId, modelId: model.id });
+				if (model.priceInput != null || model.priceOutput != null) {
+					updateModel(db, created.id, {
+						priceInput: model.priceInput ?? null,
+						priceOutput: model.priceOutput ?? null
+					});
+				}
 				added++;
+			} else if (model.priceInput != null || model.priceOutput != null) {
+				updateModel(db, existing.id, {
+					priceInput: model.priceInput ?? existing.price_input,
+					priceOutput: model.priceOutput ?? existing.price_output
+				});
 			}
 		}
 	})();
-	return { added, total: modelIds.length };
+	return { added, total: fetched.length };
 }

@@ -10,6 +10,7 @@
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PinOffIcon from '@lucide/svelte/icons/pin-off';
+	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -20,6 +21,7 @@
 	import { activeChats } from '$lib/state/active-chats.svelte.js';
 	import { serverActiveChatIds } from '$lib/state/chat-status.svelte.js';
 	import { onServerEvent, onServerEventResync } from '$lib/state/events.svelte.js';
+	import { formatCount } from '$lib/format.js';
 	import type { Conversation } from '$lib/types.js';
 
 	let {
@@ -28,7 +30,7 @@
 		unreadIds,
 		onclose
 	}: {
-		user: { name: string; email: string };
+		user: { name: string; email: string; role: string };
 		conversations: Conversation[];
 		unreadIds: string[];
 		onclose: () => void;
@@ -41,6 +43,7 @@
 	let deleteTarget = $state<Conversation | null>(null);
 	let agentStats = $state<{ running: number; total: number } | null>(null);
 	let memoryCount = $state<number | null>(null);
+	let requestStats = $state<{ running: number; total: number } | null>(null);
 
 	function refreshAgentStats() {
 		fetch('/api/agents/stats')
@@ -56,6 +59,15 @@
 			.then((r) => (r.ok ? r.json() : null))
 			.then((d) => {
 				if (d) memoryCount = d.count;
+			})
+			.catch(() => {});
+	}
+
+	function refreshRequestCount() {
+		fetch('/api/proxy-requests/stats')
+			.then((r) => (r.ok ? r.json() : null))
+			.then((d) => {
+				if (d) requestStats = { running: d.running ?? 0, total: d.count };
 			})
 			.catch(() => {});
 	}
@@ -77,6 +89,7 @@
 	onMount(() => {
 		refreshAgentStats();
 		refreshMemoryCount();
+		if (user.role === 'admin') refreshRequestCount();
 		refreshActiveChats().catch(() => {});
 		let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
 		const scheduleInvalidate = () => {
@@ -103,6 +116,10 @@
 				case 'agent.run.finished':
 					refreshAgentStats();
 					break;
+				case 'proxy.request.started':
+				case 'proxy.request.finished':
+					if (user.role === 'admin') refreshRequestCount();
+					break;
 				case 'memory.changed':
 					refreshMemoryCount();
 					break;
@@ -111,6 +128,7 @@
 		const offResync = onServerEventResync(() => {
 			refreshAgentStats();
 			refreshMemoryCount();
+			if (user.role === 'admin') refreshRequestCount();
 			refreshActiveChats().catch(() => {});
 		});
 		return () => {
@@ -273,6 +291,33 @@
 			{/if}
 		</a>
 	</div>
+
+	{#if user.role === 'admin'}
+		<div class="px-2 pb-1">
+			<a
+				href={resolve('/requests')}
+				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+					'/requests'
+				)
+					? 'bg-accent text-accent-foreground'
+					: 'text-muted-foreground hover:bg-accent/50'}"
+			>
+				<ScrollTextIcon class="size-4" />
+				Requests
+				{#if requestStats}
+					<span
+						class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+						title="{requestStats.running} running of {requestStats.total} requests"
+					>
+						{#if requestStats.running > 0}
+							<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
+						{/if}
+						{formatCount(requestStats.total)}
+					</span>
+				{/if}
+			</a>
+		</div>
+	{/if}
 
 	<nav class="flex-1 overflow-y-auto px-2 pb-2">
 		{#each visibleGroups as group (group.label)}

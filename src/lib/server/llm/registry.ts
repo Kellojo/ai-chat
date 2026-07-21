@@ -9,6 +9,7 @@ import {
 	listEnabledModels,
 	toPublic as modelToPublic,
 	type ChatModel,
+	type FetchedModel,
 	type ModelRole
 } from '../db/repo/models.js';
 import {
@@ -99,7 +100,7 @@ export function listModelsGrouped(): ModelsByProvider[] {
 async function fetchAnthropicModels(
 	provider: ProviderRow,
 	apiKey: string | undefined
-): Promise<string[]> {
+): Promise<FetchedModel[]> {
 	if (!apiKey) throw new Error(`Provider "${provider.name}" requires an API key to list models`);
 	const base = provider.base_url ?? 'https://api.anthropic.com';
 	const res = await fetch(`${base}/v1/models?limit=1000`, {
@@ -107,23 +108,36 @@ async function fetchAnthropicModels(
 	});
 	if (!res.ok) throw new Error(`Anthropic /models probe failed: ${res.status} ${await res.text()}`);
 	const body = (await res.json()) as { data?: { id: string }[] };
-	return (body.data ?? []).map((m) => m.id);
+	return (body.data ?? []).map((m) => ({ id: m.id }));
+}
+
+function pricePerMillion(value: unknown): number | null {
+	if (typeof value !== 'string' && typeof value !== 'number') return null;
+	const perToken = Number(value);
+	if (!Number.isFinite(perToken) || perToken <= 0) return null;
+	return perToken * 1_000_000;
 }
 
 async function fetchOpenAICompatibleModels(
 	provider: ProviderRow,
 	apiKey: string | undefined
-): Promise<string[]> {
+): Promise<FetchedModel[]> {
 	if (!provider.base_url) throw new Error(`Provider "${provider.name}" is missing a base URL`);
 	const headers: Record<string, string> = {};
 	if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 	const res = await fetch(`${provider.base_url.replace(/\/$/, '')}/models`, { headers });
 	if (!res.ok) throw new Error(`Provider /models probe failed: ${res.status} ${await res.text()}`);
-	const body = (await res.json()) as { data?: { id: string }[] };
-	return (body.data ?? []).map((m) => m.id);
+	const body = (await res.json()) as {
+		data?: { id: string; pricing?: { prompt?: unknown; completion?: unknown } }[];
+	};
+	return (body.data ?? []).map((m) => ({
+		id: m.id,
+		priceInput: pricePerMillion(m.pricing?.prompt),
+		priceOutput: pricePerMillion(m.pricing?.completion)
+	}));
 }
 
-export function fetchProviderModels(providerId: string): Promise<string[]> {
+export function fetchProviderModels(providerId: string): Promise<FetchedModel[]> {
 	const db = getDb();
 	const provider = getProvider(db, providerId);
 	if (!provider) throw new ModelUnavailableError(`Provider ${providerId} not found`);

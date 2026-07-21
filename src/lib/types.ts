@@ -19,6 +19,8 @@ export interface ChatModel {
 	displayName: string;
 	capabilities: string[];
 	enabled: boolean;
+	priceInput: number | null;
+	priceOutput: number | null;
 }
 
 export type ModelRole = 'chat' | 'title' | 'memory' | 'research';
@@ -82,7 +84,9 @@ export type ServerEvent =
 	  }
 	| { type: 'agent.run.started'; agentId: string; runId: string }
 	| { type: 'agent.run.progress'; agentId: string; runId: string }
-	| { type: 'agent.run.finished'; agentId: string; runId: string; status: AgentRunStatus };
+	| { type: 'agent.run.finished'; agentId: string; runId: string; status: AgentRunStatus }
+	| { type: 'proxy.request.started'; requestId: string }
+	| { type: 'proxy.request.finished'; requestId: string; status: 'complete' | 'failed' };
 
 export type AgentTriggerType = 'persona' | 'schedule' | 'http' | 'manual' | 'event';
 
@@ -135,6 +139,53 @@ export interface ApiKey {
 	scopes: string[];
 	createdAt: number;
 	lastUsedAt: number | null;
+}
+
+export interface ModelMappingTarget {
+	providerId: string;
+	modelId: string;
+}
+
+export interface ModelMapping {
+	id: string;
+	name: string;
+	targets: ModelMappingTarget[];
+	enabled: boolean;
+	createdAt: number;
+}
+
+export type ProxyRequestStatus = 'running' | 'complete' | 'failed';
+
+export interface ProxyCompression {
+	caveman?: {
+		level: string;
+		estSaved: number | null;
+		overhead?: number;
+		basis?: 'baseline' | 'ratio';
+	} | null;
+	headroom?: { before: number; after: number } | null;
+}
+
+export interface ProxyRequest {
+	id: string;
+	userId: string;
+	apiKeyId: string | null;
+	endpoint: string;
+	requestedModel: string;
+	mappingId: string | null;
+	providerId: string | null;
+	modelId: string | null;
+	fallbackIndex: number;
+	status: ProxyRequestStatus;
+	httpStatus: number | null;
+	startedAt: number;
+	latencyMs: number | null;
+	inputTokens: number | null;
+	outputTokens: number | null;
+	costUsd: number | null;
+	stream: boolean;
+	error: string | null;
+	compression: ProxyCompression | null;
 }
 
 export interface ChatMessage {

@@ -8,6 +8,7 @@ import { startAgentEventDispatcher } from '$lib/server/agents/events.js';
 import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
+import { failRunningProxyRequests } from '$lib/server/db/repo/proxy-requests.js';
 import { seedBuiltinProviders } from '$lib/server/db/seed.js';
 import { reconcileMemoryFts } from '$lib/server/memory/fts.js';
 
@@ -18,6 +19,10 @@ if (!building) {
 	const interrupted = failRunningAgentRuns(getDb());
 	if (interrupted > 0) {
 		console.warn(`Marked ${interrupted} interrupted agent run(s) as failed`);
+	}
+	const interruptedProxy = failRunningProxyRequests(getDb());
+	if (interruptedProxy > 0) {
+		console.warn(`Marked ${interruptedProxy} interrupted proxy request(s) as failed`);
 	}
 	const { upserted, removed } = reconcileMemoryFts(getDb());
 	if (upserted > 0 || removed > 0) {

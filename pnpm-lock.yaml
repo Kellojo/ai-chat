@@ -50,6 +50,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      headroom-ai:
+        specifier: ^0.22.4
+        version: 0.22.4(@ai-sdk/provider@4.0.3)(ai@7.0.31(zod@4.4.3))
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -2117,6 +2120,24 @@ packages:
 
   hastscript@9.0.1:
     resolution: {integrity: sha512-g7df9rMFX/SPi34tyGCyUBREQoKkapwdY/T04Qn9TDWfHhAYt4/I0gMVirzK5wEzeUqIjEB+LXC/ypb7Aqno5w==}
+
+  headroom-ai@0.22.4:
+    resolution: {integrity: sha512-9a0rgB/jsWe8gs/ggyUwe6E8DYwKAuBvlUml2ApwlUjb5EfJ611X6X+WG0SiXw3nO6sdyV1/+Ah5uw9P7ecnjw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@ai-sdk/provider': '>=1.0.0'
+      '@anthropic-ai/sdk': '>=0.30.0'
+      ai: '>=6.0.0'
+      openai: '>=4.0.0'
+    peerDependenciesMeta:
+      '@ai-sdk/provider':
+        optional: true
+      '@anthropic-ai/sdk':
+        optional: true
+      ai:
+        optional: true
+      openai:
+        optional: true
 
   hono@4.12.30:
     resolution: {integrity: sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog==}
@@ -5417,6 +5438,11 @@ snapshots:
       hast-util-parse-selector: 4.0.0
       property-information: 7.2.0
       space-separated-tokens: 2.0.2
+
+  headroom-ai@0.22.4(@ai-sdk/provider@4.0.3)(ai@7.0.31(zod@4.4.3)):
+    optionalDependencies:
+      '@ai-sdk/provider': 4.0.3
+      ai: 7.0.31(zod@4.4.3)
 
   hono@4.12.30: {}
 

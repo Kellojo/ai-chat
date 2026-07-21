@@ -4,7 +4,7 @@ import { publishServerEvent } from '$lib/server/events/bus.js';
 import { GET } from './+server.js';
 
 interface CallInit {
-	user?: { id: string } | null;
+	user?: { id: string; role?: string } | null;
 }
 
 function call(init: CallInit = {}): Response {
@@ -66,5 +66,52 @@ describe('GET /api/events', () => {
 			new Promise<{ done: boolean }>((resolve) => setTimeout(() => resolve({ done: true }), 50))
 		]);
 		expect(done).toBe(true);
+	});
+
+	async function expectSilence(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+		const { done } = await Promise.race([
+			reader.read(),
+			new Promise<{ done: boolean }>((resolve) => setTimeout(() => resolve({ done: true }), 50))
+		]);
+		expect(done).toBe(true);
+	}
+
+	it('delivers proxy events from other users to admins', async () => {
+		const res = call({ user: { id: 'a1', role: 'admin' } });
+		const reader = res.body!.getReader();
+		await readChunk(reader);
+		publishServerEvent('u2', { type: 'proxy.request.started', requestId: 'r1' });
+		const chunk = await readChunk(reader);
+		expect(chunk).toBe('data: {"type":"proxy.request.started","requestId":"r1"}\n\n');
+		await reader.cancel();
+	});
+
+	it('does not deliver proxy events from other users to non-admins', async () => {
+		const res = call({ user: { id: 'u1' } });
+		const reader = res.body!.getReader();
+		await readChunk(reader);
+		publishServerEvent('u2', { type: 'proxy.request.started', requestId: 'r1' });
+		await expectSilence(reader);
+		await reader.cancel();
+	});
+
+	it('does not deliver non-proxy events from other users to admins', async () => {
+		const res = call({ user: { id: 'a1', role: 'admin' } });
+		const reader = res.body!.getReader();
+		await readChunk(reader);
+		publishServerEvent('u2', { type: 'chat.stream.finished', conversationId: 'c1' });
+		await expectSilence(reader);
+		await reader.cancel();
+	});
+
+	it('delivers an admin their own proxy event only once', async () => {
+		const res = call({ user: { id: 'a1', role: 'admin' } });
+		const reader = res.body!.getReader();
+		await readChunk(reader);
+		publishServerEvent('a1', { type: 'proxy.request.started', requestId: 'r1' });
+		const chunk = await readChunk(reader);
+		expect(chunk).toBe('data: {"type":"proxy.request.started","requestId":"r1"}\n\n');
+		await expectSilence(reader);
+		await reader.cancel();
 	});
 });

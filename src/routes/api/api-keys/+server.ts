@@ -12,7 +12,7 @@ export const GET: RequestHandler = ({ locals }) => {
 
 const createSchema = z.object({
 	label: z.string().trim().min(1).max(100),
-	scopes: z.array(z.enum(['agents:run'])).default(['agents:run'])
+	scopes: z.array(z.enum(['agents:run', 'llm:invoke'])).default(['agents:run'])
 });
 
 export const POST: RequestHandler = async ({ locals, request }) => {

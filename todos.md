@@ -7,6 +7,12 @@ General Questions:
 
 Todos:
 
+- Make group headers in the settings more pronounced
+- Also allow selecting model mappings for regular chat/agents and use the same logic
+- Also route regular AI requests through the existing new AI proxy module, to ensure they profit from headroom/caveman, if enabled
+
+Next Steps:
+
 - AI Proxy impls based on the plan
 - M7 Skills
 - M8 Deep research
@@ -14,6 +20,7 @@ Todos:
 - Other enhancements
 - Code review pass
 - Security hardening pass
+- Rebrand to Chatty
 
 Ideas for later
 
@@ -30,6 +37,7 @@ Ideas for later
 - Make the sidebar a bit more organized, Conversations should have their own heading maybe? And also the agents/memory, shouldn't be in between the search and conversation history/results
 - On the settings page, make the overflow: overlay, and prevent the scrollbar appearing from shifting the page content
 - Add additional default provider types, such as: LM Studio, Openrouter, with prefilled url, maybe even icons in the ui?
+- More interesting login screen with https://kokonutui.com/docs/backgrounds/beams-background
 
 - switch all sync fs method calls to their async counterparts
 

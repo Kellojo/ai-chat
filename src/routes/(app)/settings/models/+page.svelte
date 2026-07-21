@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
@@ -28,6 +30,11 @@
 	let capsModel = $state<Model | null>(null);
 	let capsSelected = $state<Capability[]>([]);
 	let capsBusy = $state(false);
+
+	let pricingModel = $state<Model | null>(null);
+	let pricingInput = $state('');
+	let pricingOutput = $state('');
+	let pricingBusy = $state(false);
 
 	let deleteId = $state<string | null>(null);
 	let deleteBusy = $state(false);
@@ -110,6 +117,51 @@
 		}
 	}
 
+	function openPricing(model: Model) {
+		pricingModel = model;
+		pricingInput = model.priceInput !== null ? String(model.priceInput) : '';
+		pricingOutput = model.priceOutput !== null ? String(model.priceOutput) : '';
+	}
+
+	function parsePrice(raw: string): number | null {
+		const trimmed = raw.trim();
+		if (trimmed === '') return null;
+		const value = Number(trimmed);
+		if (!Number.isFinite(value) || value < 0)
+			throw new Error('Prices must be non-negative numbers');
+		return value;
+	}
+
+	async function submitPricing(event: SubmitEvent) {
+		event.preventDefault();
+		if (!pricingModel) return;
+		pricingBusy = true;
+		try {
+			await api(`/api/models/${pricingModel.id}`, 'PATCH', {
+				priceInput: parsePrice(pricingInput),
+				priceOutput: parsePrice(pricingOutput)
+			});
+			toast.success('Pricing updated');
+			pricingModel = null;
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to update pricing');
+		} finally {
+			pricingBusy = false;
+		}
+	}
+
+	function formatUsdPerMillion(value: number): string {
+		return `$${Number(value.toPrecision(6))}`;
+	}
+
+	function formatPrice(model: Model): string {
+		if (model.priceInput === null && model.priceOutput === null) return '—';
+		const input = model.priceInput !== null ? formatUsdPerMillion(model.priceInput) : '?';
+		const output = model.priceOutput !== null ? formatUsdPerMillion(model.priceOutput) : '?';
+		return `${input} / ${output}`;
+	}
+
 	async function confirmDelete() {
 		if (!deleteId) return;
 		deleteBusy = true;
@@ -154,6 +206,7 @@
 							<Table.Head>Display name</Table.Head>
 							<Table.Head>Model ID</Table.Head>
 							<Table.Head>Capabilities</Table.Head>
+							<Table.Head>Price / 1M tok</Table.Head>
 							<Table.Head>Enabled</Table.Head>
 							<Table.Head class="text-right">Actions</Table.Head>
 						</Table.Row>
@@ -174,6 +227,9 @@
 										{/each}
 									</div>
 								</Table.Cell>
+								<Table.Cell class="whitespace-nowrap text-muted-foreground">
+									<span title="Input / output price per 1M tokens (USD)">{formatPrice(model)}</span>
+								</Table.Cell>
 								<Table.Cell>
 									<Switch
 										checked={model.enabled}
@@ -182,19 +238,43 @@
 									/>
 								</Table.Cell>
 								<Table.Cell class="text-right whitespace-nowrap">
-									<div class="flex justify-end gap-2">
-										<Button variant="outline" size="sm" onclick={() => openCaps(model)}>
-											Capabilities
-										</Button>
-										<Button variant="destructive" size="sm" onclick={() => (deleteId = model.id)}>
-											Delete
-										</Button>
+									<div class="flex justify-end">
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger>
+												{#snippet child({ props })}
+													<Button
+														{...props}
+														variant="ghost"
+														size="icon-sm"
+														title="Actions"
+														aria-label="Actions"
+													>
+														<EllipsisIcon class="size-4" />
+													</Button>
+												{/snippet}
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
+												<DropdownMenu.Item onclick={() => openCaps(model)}>
+													Capabilities
+												</DropdownMenu.Item>
+												<DropdownMenu.Item onclick={() => openPricing(model)}>
+													Pricing
+												</DropdownMenu.Item>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item
+													variant="destructive"
+													onclick={() => (deleteId = model.id)}
+												>
+													Delete
+												</DropdownMenu.Item>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
 									</div>
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={5} class="text-center text-muted-foreground">
+								<Table.Cell colspan={6} class="text-center text-muted-foreground">
 									No models. Use "Fetch models" on the Providers page or add one manually.
 								</Table.Cell>
 							</Table.Row>
@@ -266,6 +346,47 @@
 				{capsBusy ? 'Saving…' : 'Save capabilities'}
 			</Button>
 		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root open={pricingModel !== null} onOpenChange={(open) => !open && (pricingModel = null)}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Pricing — {pricingModel?.displayName}</Dialog.Title>
+			<Dialog.Description>
+				USD per 1M tokens. Leave empty when unknown; cost is only reported when both prices are set.
+				Providers like OpenRouter fill these automatically on fetch.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form onsubmit={submitPricing} class="flex flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<Label for="price-input">Input price</Label>
+				<Input
+					id="price-input"
+					bind:value={pricingInput}
+					type="number"
+					min="0"
+					step="any"
+					placeholder="e.g. 0.15"
+				/>
+			</div>
+			<div class="flex flex-col gap-2">
+				<Label for="price-output">Output price</Label>
+				<Input
+					id="price-output"
+					bind:value={pricingOutput}
+					type="number"
+					min="0"
+					step="any"
+					placeholder="e.g. 0.60"
+				/>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={pricingBusy}>
+					{pricingBusy ? 'Saving…' : 'Save pricing'}
+				</Button>
+			</Dialog.Footer>
+		</form>
 	</Dialog.Content>
 </Dialog.Root>
 
