@@ -71,13 +71,7 @@
 				})
 			}),
 			onError: (error) => {
-				const message =
-					error instanceof Error && error.message
-						? error.message
-						: typeof error === 'string'
-							? error
-							: 'Something went wrong';
-				toast.error(message);
+				toast.error(error.message || 'Something went wrong');
 			}
 		});
 	}

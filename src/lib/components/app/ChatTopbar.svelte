@@ -103,6 +103,14 @@
 	{/if}
 
 	<div class="ml-auto flex items-center gap-3">
+		<Label class="flex items-center gap-2 text-sm text-muted-foreground">
+			Agent mode
+			<Switch
+				checked={conversation.mode === 'agent'}
+				disabled={saving}
+				onCheckedChange={(v) => patch({ mode: v ? 'agent' : 'chat' })}
+			/>
+		</Label>
 		<Button
 			variant="ghost"
 			size="icon"

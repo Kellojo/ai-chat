@@ -47,25 +47,6 @@ export class ChatRequestError extends Error {
 	}
 }
 
-function formatStreamError(error: unknown): string {
-	if (error instanceof Error) return error.message;
-	if (typeof error === 'string') return error;
-	if (error && typeof error === 'object') {
-		const record = error as Record<string, unknown>;
-		for (const key of ['message', 'error', 'reason']) {
-			const value = record[key];
-			if (typeof value === 'string' && value) return value;
-			if (value instanceof Error && value.message) return value.message;
-		}
-		try {
-			return JSON.stringify(error);
-		} catch {
-			// fall through
-		}
-	}
-	return 'An error occurred while generating the response';
-}
-
 const ATTACHMENT_URL_PREFIX = '/api/conversations/';
 
 function attachmentIdFromUrl(url: string, conversationId: string): string | null {
@@ -223,9 +204,9 @@ export async function handleChatRequest(
 						...(conversation.max_tokens != null
 							? { maxOutputTokens: conversation.max_tokens }
 							: {}),
-				onError: ({ error }) => {
-					errorText = formatStreamError(error);
-				}
+					onError: ({ error }) => {
+						errorText = error instanceof Error ? error.message : String(error);
+					}
 				});
 				const uiStream = result.toUIMessageStream({
 					originalMessages: body.messages,
