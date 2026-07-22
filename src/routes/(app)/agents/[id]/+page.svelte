@@ -30,6 +30,6 @@
 				{/if}
 			</h1>
 		</div>
-		<AgentEditor agent={data.agent} models={data.models} tools={data.tools} readonly={builtin} />
+		<AgentEditor agent={data.agent} groups={data.groups} mappings={data.mappings} tools={data.tools} readonly={builtin} />
 	</div>
 </div>

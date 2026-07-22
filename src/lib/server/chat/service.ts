@@ -1,6 +1,14 @@
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 'ai';
+import {
+	convertToModelMessages,
+	createUIMessageStream,
+	createUIMessageStreamResponse,
+	stepCountIs,
+	streamText,
+	type UIMessage,
+	type UIMessageChunk
+} from 'ai';
 import { config } from '../config.js';
 import { getDb, type Db } from '../db/index.js';
 import {
@@ -23,6 +31,7 @@ import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
 import { publishServerEvent } from '../events/bus.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
+import { isRetryableModelError, resolveRefTargets } from '../llm/mapped.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
 import { buildTools } from '../tools/registry.js';
 import { conversationWorkspace, resolveAttachment } from '../workspaces.js';
@@ -138,9 +147,9 @@ export async function handleChatRequest(
 	touchConversation(db, conversation.id);
 
 	const ref = { providerId: conversation.provider_id!, modelId: conversation.model_id! };
-	let model;
+	let targets;
 	try {
-		model = resolveModel(ref);
+		targets = resolveRefTargets(ref, db).targets;
 	} catch (e) {
 		if (e instanceof ModelUnavailableError) throw new ChatRequestError(400, e.message);
 		throw e;
@@ -162,35 +171,76 @@ export async function handleChatRequest(
 	publishServerEvent(userId, { type: 'chat.stream.started', conversationId: conversation.id });
 
 	let errorText: string | null = null;
-	let result: ReturnType<typeof streamText>;
-	try {
-		result = streamText({
-			model,
-			system: buildSystemPrompt(conversation, getGlobalInstructions(db, userId)),
-			tools,
-			messages: await convertToModelMessages(
-				inlineAttachmentParts(db, conversation.id, body.messages)
-			),
-			stopWhen: stepCountIs(
-				conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
-			),
-			abortSignal: controller.signal,
-			...(conversation.temperature != null ? { temperature: conversation.temperature } : {}),
-			...(conversation.max_tokens != null ? { maxOutputTokens: conversation.max_tokens } : {}),
-			onError: ({ error }) => {
-				errorText = error instanceof Error ? error.message : String(error);
-			}
-		});
-	} catch (e) {
-		releaseStream(conversation.id, controller);
-		await close();
-		throw e;
-	}
+	const system = buildSystemPrompt(conversation, getGlobalInstructions(db, userId));
+	const modelMessages = await convertToModelMessages(
+		inlineAttachmentParts(db, conversation.id, body.messages)
+	);
+	const stopWhen = stepCountIs(
+		conversation.mode === 'agent' ? (conversation.max_steps ?? config.AGENT_MAX_STEPS) : 5
+	);
 
-	return result.toUIMessageStreamResponse({
-		onError: () => errorText ?? 'An error occurred while generating the response',
-		generateMessageId: () => randomUUID(),
+	const stream = createUIMessageStream<UIMessage>({
 		originalMessages: body.messages,
+		generateId: () => randomUUID(),
+		onError: () => errorText ?? 'An error occurred while generating the response',
+		execute: async ({ writer }) => {
+			let lastError: unknown = null;
+			for (let i = 0; i < targets.length; i++) {
+				const target = targets[i];
+				let contentful = false;
+				const buffer: UIMessageChunk[] = [];
+				try {
+					const model = resolveModel(target);
+					const result = streamText({
+						model,
+						system,
+						tools,
+						messages: modelMessages,
+						stopWhen,
+						abortSignal: controller.signal,
+						...(conversation.temperature != null
+							? { temperature: conversation.temperature }
+							: {}),
+						...(conversation.max_tokens != null
+							? { maxOutputTokens: conversation.max_tokens }
+							: {}),
+					onError: ({ error }) => {
+						errorText = error instanceof Error ? error.message : String(error);
+					}
+				});
+				const uiStream = result.toUIMessageStream({
+					originalMessages: body.messages,
+					generateMessageId: () => randomUUID()
+				});
+				for await (const chunk of uiStream) {
+					const c = chunk as { type?: string };
+					if (c.type === 'error') throw new Error(errorText ?? 'An error occurred');
+					const isContent =
+						c.type === 'text-delta' ||
+						c.type === 'tool-input-start' ||
+						c.type === 'tool-input-delta' ||
+						c.type === 'tool-input-available';
+					if (!isContent) {
+						if (!contentful) buffer.push(chunk);
+						else writer.write(chunk);
+						continue;
+					}
+					if (!contentful) {
+						contentful = true;
+						for (const b of buffer) writer.write(b);
+						buffer.length = 0;
+					}
+					writer.write(chunk);
+				}
+				return;
+				} catch (e) {
+					lastError = e;
+					if (!contentful && i < targets.length - 1 && isRetryableModelError(e)) continue;
+					throw e;
+				}
+			}
+			throw lastError ?? new Error('No model produced a response');
+		},
 		onEnd: async ({ responseMessage, isAborted }) => {
 			try {
 				const status = isAborted ? 'partial' : errorText ? 'failed' : 'complete';
@@ -229,4 +279,6 @@ export async function handleChatRequest(
 			}
 		}
 	});
+
+	return createUIMessageStreamResponse({ stream });
 }

@@ -2,6 +2,7 @@
 	import { authClient } from '$lib/auth-client.js';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import BeamsBackground from '$lib/components/beams-background.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -31,58 +32,63 @@
 	}
 </script>
 
-<main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 p-6">
-	<h1 class="text-2xl font-semibold">Create account</h1>
+<main class="relative mx-auto flex min-h-screen max-w-md flex-col justify-center p-6">
+	<BeamsBackground class="fixed -z-10" />
+	<div
+		class="flex flex-col gap-6 rounded-xl border border-neutral-200 bg-white/90 p-8 shadow-lg backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/90"
+	>
+		<h1 class="text-2xl font-semibold">Create your Chatty account</h1>
 
-	{#if data.authConfig.signup}
-		<form onsubmit={submit} class="flex flex-col gap-3">
-			<label class="flex flex-col gap-1">
-				<span class="text-sm font-medium">Name</span>
-				<input
-					type="text"
-					bind:value={name}
-					required
-					autocomplete="name"
-					class="rounded-md border px-3 py-2"
-				/>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-sm font-medium">Email</span>
-				<input
-					type="email"
-					bind:value={email}
-					required
-					autocomplete="email"
-					class="rounded-md border px-3 py-2"
-				/>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-sm font-medium">Password</span>
-				<input
-					type="password"
-					bind:value={password}
-					required
-					minlength="8"
-					autocomplete="new-password"
-					class="rounded-md border px-3 py-2"
-				/>
-			</label>
-			{#if errorMessage}
-				<p class="text-sm text-red-600">{errorMessage}</p>
-			{/if}
-			<button
-				type="submit"
-				disabled={loading}
-				class="rounded-md bg-black px-3 py-2 text-white disabled:opacity-50"
-			>
-				{loading ? 'Creating account…' : 'Sign up'}
-			</button>
-		</form>
-	{:else}
-		<p class="text-sm">Sign-up is disabled.</p>
-	{/if}
+		{#if data.authConfig.signup}
+			<form onsubmit={submit} class="flex flex-col gap-3">
+				<label class="flex flex-col gap-1">
+					<span class="text-sm font-medium">Name</span>
+					<input
+						type="text"
+						bind:value={name}
+						required
+						autocomplete="name"
+						class="rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-sm font-medium">Email</span>
+					<input
+						type="email"
+						bind:value={email}
+						required
+						autocomplete="email"
+						class="rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-sm font-medium">Password</span>
+					<input
+						type="password"
+						bind:value={password}
+						required
+						minlength="8"
+						autocomplete="new-password"
+						class="rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950"
+					/>
+				</label>
+				{#if errorMessage}
+					<p class="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+				{/if}
+				<button
+					type="submit"
+					disabled={loading}
+					class="rounded-md bg-black px-3 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
+				>
+					{loading ? 'Creating account…' : 'Sign up'}
+				</button>
+			</form>
+		{:else}
+			<p class="text-sm">Sign-up is disabled.</p>
+		{/if}
 
-	<p class="text-sm">
-		Already have an account? <a href={resolve('/login')} class="underline">Sign in</a>
-	</p>
+		<p class="text-sm">
+			Already have an account? <a href={resolve('/login')} class="underline">Sign in</a>
+		</p>
+	</div>
 </main>

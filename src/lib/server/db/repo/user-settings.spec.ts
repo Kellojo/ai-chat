@@ -26,11 +26,29 @@ describe('user-settings repo', () => {
 			theme: 'system',
 			suggestions: repo.getSuggestions(db, 'u1'),
 			globalInstructions: '',
-			timeFormat: 'auto'
+			timeFormat: 'auto',
+			sidebarOpen: true
 		});
 		expect(repo.getTheme(db, 'u1')).toBe('system');
 		expect(repo.getTimeFormat(db, 'u1')).toBe('auto');
+		expect(repo.getSidebarOpen(db, 'u1')).toBe(true);
 		expect(repo.getSuggestions(db, 'u1').length).toBeGreaterThan(0);
+	});
+
+	it('round-trips sidebarOpen per user', () => {
+		repo.setUserSetting(db, 'u1', 'sidebarOpen', false);
+		expect(repo.getSidebarOpen(db, 'u1')).toBe(false);
+		seedUser(db, 'u2');
+		expect(repo.getSidebarOpen(db, 'u2')).toBe(true);
+	});
+
+	it('falls back to default sidebarOpen for invalid stored data', () => {
+		db.prepare('INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(
+			'u1',
+			'sidebarOpen',
+			JSON.stringify('open')
+		);
+		expect(repo.getSidebarOpen(db, 'u1')).toBe(true);
 	});
 
 	it('round-trips values per user', () => {

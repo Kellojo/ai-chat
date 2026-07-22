@@ -22,11 +22,13 @@ export interface UserSettings {
 	suggestions: string[];
 	globalInstructions: string;
 	timeFormat: TimeFormat;
+	sidebarOpen: boolean;
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
 	theme: 'system',
 	suggestions: DEFAULT_SUGGESTIONS,
 	globalInstructions: '',
-	timeFormat: 'auto'
+	timeFormat: 'auto',
+	sidebarOpen: true
 };

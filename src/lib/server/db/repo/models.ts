@@ -151,6 +151,28 @@ export function setRoleDefault(db: Db, role: ModelRole, modelId: string | null):
 }
 
 export function findRoleModel(db: Db, role: ModelRole): ModelRow | undefined {
+	const stored = db.prepare('SELECT model_id FROM role_defaults WHERE role = ?').get(role) as
+		| { model_id: string }
+		| undefined;
+	if (!stored) return undefined;
+	if (stored.model_id.startsWith('mapping:')) {
+		const mapping = db
+			.prepare('SELECT * FROM model_mappings WHERE id = ? AND enabled = 1')
+			.get(stored.model_id.slice('mapping:'.length)) as
+			| { id: string; name: string }
+			| undefined;
+		if (!mapping) return undefined;
+		return {
+			id: `mapping:${mapping.id}`,
+			provider_id: `mapping:${mapping.id}`,
+			model_id: mapping.name,
+			display_name: mapping.name,
+			capabilities: '[]',
+			enabled: 1,
+			price_input: null,
+			price_output: null
+		};
+	}
 	return db
 		.prepare(
 			`SELECT m.* FROM role_defaults r

@@ -2,6 +2,10 @@ import { error } from '@sveltejs/kit';
 import { hasActiveStream } from '$lib/server/chat/streams.js';
 import { getDb } from '$lib/server/db/index.js';
 import { listPersonaAgents, toPublic as agentToPublic } from '$lib/server/db/repo/agents.js';
+import {
+	listEnabledModelMappings,
+	toPublic as mappingToPublic
+} from '$lib/server/db/repo/model-mappings.js';
 import { findModel, findRoleModel, listEnabledModels } from '$lib/server/db/repo/models.js';
 import {
 	getConversation,
@@ -34,6 +38,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		conversation: conversationToPublic(conversation),
 		messages: listMessages(db, conversation.id).map(messageToPublic),
 		groups: listModelsGrouped(),
+		mappings: listEnabledModelMappings(db).map(mappingToPublic),
 		defaultModel,
 		timeFormat: getTimeFormat(db, user.id),
 		personas: listPersonaAgents(db, user.id).map(agentToPublic),

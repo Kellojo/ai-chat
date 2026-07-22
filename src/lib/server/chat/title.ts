@@ -3,12 +3,13 @@ import { getDb } from '../db/index.js';
 import { setConversationTitle } from '../db/repo/conversations.js';
 import { publishServerEvent } from '../events/bus.js';
 import { resolveModel, roleModel } from '../llm/registry.js';
+import { resolveRefTargets } from '../llm/mapped.js';
 
 function titleModel(fallback: { providerId: string; modelId: string }): LanguageModel {
 	try {
 		return roleModel('title');
 	} catch {
-		return resolveModel(fallback);
+		return resolveModel(resolveRefTargets(fallback).targets[0]);
 	}
 }
 

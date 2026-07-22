@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import SelectPortal from './select-portal.svelte';
-	import SelectScrollUpButton from './select-scroll-up-button.svelte';
-	import SelectScrollDownButton from './select-scroll-down-button.svelte';
 	import { cn, type WithoutChild } from '$lib/utils.js';
 	import type { ComponentProps } from 'svelte';
 	import type { WithoutChildrenOrChild } from '$lib/utils.js';
@@ -32,7 +30,6 @@
 		)}
 		{...restProps}
 	>
-		<SelectScrollUpButton />
 		<SelectPrimitive.Viewport
 			class={cn(
 				'h-(--bits-select-anchor-height) w-full min-w-(--bits-select-anchor-width) scroll-my-1'
@@ -40,6 +37,5 @@
 		>
 			{@render children?.()}
 		</SelectPrimitive.Viewport>
-		<SelectScrollDownButton />
 	</SelectPrimitive.Content>
 </SelectPortal>

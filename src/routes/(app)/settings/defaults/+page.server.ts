@@ -5,6 +5,10 @@ import {
 	listRoleDefaults,
 	toPublic as modelToPublic
 } from '$lib/server/db/repo/models.js';
+import {
+	listEnabledModelMappings,
+	toPublic as mappingToPublic
+} from '$lib/server/db/repo/model-mappings.js';
 import { listProviders, toPublic as providerToPublic } from '$lib/server/db/repo/providers.js';
 import type { PageServerLoad } from './$types';
 
@@ -14,6 +18,7 @@ export const load: PageServerLoad = ({ locals }) => {
 	return {
 		providers: listProviders(db).map(providerToPublic),
 		models: listModels(db).map(modelToPublic),
+		mappings: listEnabledModelMappings(db).map(mappingToPublic),
 		roles: listRoleDefaults(db)
 	};
 };

@@ -21,6 +21,7 @@ import { createMessage, updateMessage } from '../db/repo/messages.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { publishServerEvent } from '../events/bus.js';
 import { resolveModel } from '../llm/registry.js';
+import { isRetryableModelError, resolveRefTargets } from '../llm/mapped.js';
 import { buildTools } from '../tools/registry.js';
 import { ensureAgentWorkspace } from '../workspaces.js';
 
@@ -65,7 +66,7 @@ export async function startAgentRun(
 		}
 		ref = { providerId: roleDefault.provider_id, modelId: roleDefault.model_id };
 	}
-	const model = resolveModel(ref);
+	const targets = resolveRefTargets(ref, db).targets;
 
 	const conversation = createConversation(db, input.userId, {
 		kind: 'agent-run',
@@ -126,11 +127,15 @@ export async function startAgentRun(
 		let errorText: string | null = null;
 		const assistantMessageIds: string[] = [];
 		let lastProgressAt = 0;
-		try {
+		const modelMessages = await convertToModelMessages([uiUserMessage]);
+
+		const runTarget = async (target: { providerId: string; modelId: string }) => {
+			let contentful = false;
+			const model = resolveModel(target);
 			const result = streamText({
 				model,
 				system,
-				messages: await convertToModelMessages([uiUserMessage]),
+				messages: modelMessages,
 				tools,
 				stopWhen: stepCountIs(agent.max_steps ?? config.AGENT_MAX_STEPS),
 				maxRetries: 2,
@@ -145,6 +150,7 @@ export async function startAgentRun(
 					generateMessageId: () => randomUUID()
 				})
 			})) {
+				if (message.parts.length > 0) contentful = true;
 				if (!assistantMessageIds.includes(message.id)) {
 					assistantMessageIds.push(message.id);
 					createMessage(db, {
@@ -167,6 +173,27 @@ export async function startAgentRun(
 					});
 				}
 			}
+			return contentful;
+		};
+
+		try {
+			let lastError: unknown = null;
+			for (let i = 0; i < targets.length; i++) {
+				try {
+					const contentful = await runTarget(targets[i]);
+					if (!contentful && errorText) throw new Error(errorText);
+					lastError = null;
+					break;
+				} catch (e) {
+					lastError = e;
+					if (assistantMessageIds.length === 0 && i < targets.length - 1 && isRetryableModelError(e)) {
+						errorText = null;
+						continue;
+					}
+					throw e;
+				}
+			}
+			if (lastError) throw lastError;
 		} catch (e) {
 			if (!errorText) errorText = e instanceof Error ? e.message : String(e);
 		} finally {

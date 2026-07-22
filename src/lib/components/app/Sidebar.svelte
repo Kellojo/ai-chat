@@ -7,9 +7,11 @@
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import BrainIcon from '@lucide/svelte/icons/brain';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PinOffIcon from '@lucide/svelte/icons/pin-off';
+	import PlusIcon from '@lucide/svelte/icons/plus';
 	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
@@ -22,21 +24,63 @@
 	import { serverActiveChatIds } from '$lib/state/chat-status.svelte.js';
 	import { onServerEvent, onServerEventResync } from '$lib/state/events.svelte.js';
 	import { formatCount } from '$lib/format.js';
+	import { version } from '$lib/version.js';
 	import type { Conversation } from '$lib/types.js';
 
 	let {
 		user,
 		conversations,
+		hasMore,
 		unreadIds,
 		onclose
 	}: {
 		user: { name: string; email: string; role: string };
 		conversations: Conversation[];
+		hasMore: boolean;
 		unreadIds: string[];
 		onclose: () => void;
 	} = $props();
 
+	let extraState = $state<{ base: Conversation[]; extra: Conversation[]; hasMore: boolean }>(
+		(() => ({ base: conversations, extra: [], hasMore }))()
+	);
+	let loadingMore = $state(false);
+
+	const extras = $derived(extraState.base === conversations ? extraState.extra : []);
+	const hasMorePages = $derived(extraState.base === conversations ? extraState.hasMore : hasMore);
+
+	function observeSentinel(node: HTMLElement) {
+		const observer = new IntersectionObserver((entries) => {
+			if (entries.some((e) => e.isIntersecting)) void loadMore();
+		});
+		observer.observe(node);
+		return () => observer.disconnect();
+	}
+
+	async function loadMore() {
+		if (loadingMore || !hasMorePages) return;
+		loadingMore = true;
+		try {
+			const base = conversations;
+			const offset = base.length + extras.length;
+			const res = await fetch(`/api/conversations?offset=${offset}`);
+			if (!res.ok) return;
+			const data = (await res.json()) as { conversations: Conversation[]; hasMore: boolean };
+			const known = new Set([...base, ...extras].map((c) => c.id));
+			extraState = {
+				base,
+				extra: [...extras, ...data.conversations.filter((c) => !known.has(c.id))],
+				hasMore: data.hasMore
+			};
+		} finally {
+			loadingMore = false;
+		}
+	}
+
+	const allConversations = $derived([...conversations, ...extras]);
+
 	let query = $state('');
+	let searchInput = $state<HTMLInputElement | null>(null);
 	let searchResults = $state<Conversation[] | null>(null);
 	let renameTarget = $state<Conversation | null>(null);
 	let renameText = $state('');
@@ -84,6 +128,14 @@
 		serverActiveChatIds.clear();
 		for (const id of next) serverActiveChatIds.add(id);
 		if (completed) await invalidateAll();
+	}
+
+	function onGlobalKeydown(event: KeyboardEvent) {
+		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+			event.preventDefault();
+			searchInput?.focus();
+			searchInput?.select();
+		}
 	}
 
 	onMount(() => {
@@ -163,7 +215,7 @@
 		return groups.filter((g) => g.items.length > 0);
 	}
 
-	const visibleGroups = $derived(groupByDate(searchResults ?? conversations));
+	const visibleGroups = $derived(groupByDate(searchResults ?? allConversations));
 
 	async function search() {
 		const q = query.trim();
@@ -227,98 +279,43 @@
 	}
 </script>
 
+<svelte:window onkeydown={onGlobalKeydown} />
+
 <aside class="flex h-full w-72 shrink-0 flex-col border-r bg-muted/30">
 	<div class="flex items-center justify-between gap-2 p-3">
-		<span class="px-1 text-sm font-semibold">AI Chat</span>
-		<div class="flex gap-1">
-			<Button variant="outline" size="sm" onclick={newChat}>New chat</Button>
-			<Button variant="ghost" size="sm" onclick={onclose} aria-label="Close sidebar">
-				<XIcon class="size-4" />
-			</Button>
+		<div class="flex min-w-0 items-baseline gap-2">
+			<a
+				href="https://github.com/Kellojo/ai-chat"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="px-1 text-sm font-semibold hover:underline"
+				title="GitHub repository"
+			>
+				Chatty
+			</a>
+			<span class="text-xs text-muted-foreground">v{version}</span>
 		</div>
+		<Button variant="ghost" size="sm" onclick={onclose} aria-label="Close sidebar">
+			<XIcon class="size-4" />
+		</Button>
+	</div>
+
+	<div class="px-3 pb-2">
+		<Button variant="outline" size="sm" onclick={newChat} class="w-full">
+			<PlusIcon class="size-4" />
+			New chat
+		</Button>
 	</div>
 
 	<div class="px-3 pb-2">
 		<Input
+			bind:ref={searchInput}
 			placeholder="Search conversations…"
 			bind:value={query}
 			oninput={search}
 			class="h-8 text-sm"
 		/>
 	</div>
-
-	<div class="px-2 pb-1">
-		<a
-			href={resolve('/agents')}
-			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
-				'/agents'
-			)
-				? 'bg-accent text-accent-foreground'
-				: 'text-muted-foreground hover:bg-accent/50'}"
-		>
-			<BotIcon class="size-4" />
-			Agents
-			{#if agentStats}
-				<span
-					class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
-					title="{agentStats.running} running of {agentStats.total} agents"
-				>
-					{#if agentStats.running > 0}
-						<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
-					{/if}
-					{agentStats.running}/{agentStats.total}
-				</span>
-			{/if}
-		</a>
-	</div>
-
-	<div class="px-2 pb-1">
-		<a
-			href={resolve('/memory')}
-			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
-				'/memory'
-			)
-				? 'bg-accent text-accent-foreground'
-				: 'text-muted-foreground hover:bg-accent/50'}"
-		>
-			<BrainIcon class="size-4" />
-			Memory
-			{#if memoryCount !== null}
-				<span
-					class="ml-auto text-xs text-muted-foreground tabular-nums"
-					title="{memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}">{memoryCount}</span
-				>
-			{/if}
-		</a>
-	</div>
-
-	{#if user.role === 'admin'}
-		<div class="px-2 pb-1">
-			<a
-				href={resolve('/requests')}
-				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
-					'/requests'
-				)
-					? 'bg-accent text-accent-foreground'
-					: 'text-muted-foreground hover:bg-accent/50'}"
-			>
-				<ScrollTextIcon class="size-4" />
-				Requests
-				{#if requestStats}
-					<span
-						class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
-						title="{requestStats.running} running of {requestStats.total} requests"
-					>
-						{#if requestStats.running > 0}
-							<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
-						{/if}
-						{formatCount(requestStats.total)}
-					</span>
-				{/if}
-			</a>
-		</div>
-	{/if}
-
 	<nav class="flex-1 overflow-y-auto px-2 pb-2">
 		{#each visibleGroups as group (group.label)}
 			<p class="px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">{group.label}</p>
@@ -378,7 +375,81 @@
 				{searchResults ? 'No matches.' : 'No conversations yet.'}
 			</p>
 		{/each}
+		{#if !searchResults && hasMorePages}
+			<div {@attach observeSentinel} class="flex justify-center py-2">
+				{#if loadingMore}
+					<LoaderCircleIcon class="size-4 animate-spin text-muted-foreground" />
+				{/if}
+			</div>
+		{/if}
 	</nav>
+
+	<div class="px-2 pt-2 pb-2">
+		<p class="px-2 pt-1 pb-1 text-xs font-medium text-muted-foreground">Workspace</p>
+		<a
+			href={resolve('/agents')}
+			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+				'/agents'
+			)
+				? 'bg-accent text-accent-foreground'
+				: 'text-muted-foreground hover:bg-accent/50'}"
+		>
+			<BotIcon class="size-4" />
+			Agents
+			{#if agentStats}
+				<span
+					class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+					title="{agentStats.running} running of {agentStats.total} agents"
+				>
+					{#if agentStats.running > 0}
+						<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
+					{/if}
+					{agentStats.running}/{agentStats.total}
+				</span>
+			{/if}
+		</a>
+		<a
+			href={resolve('/memory')}
+			class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+				'/memory'
+			)
+				? 'bg-accent text-accent-foreground'
+				: 'text-muted-foreground hover:bg-accent/50'}"
+		>
+			<BrainIcon class="size-4" />
+			Memory
+			{#if memoryCount !== null}
+				<span
+					class="ml-auto text-xs text-muted-foreground tabular-nums"
+					title="{memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}">{memoryCount}</span
+				>
+			{/if}
+		</a>
+		{#if user.role === 'admin'}
+			<a
+				href={resolve('/requests')}
+				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm {page.url.pathname.startsWith(
+					'/requests'
+				)
+					? 'bg-accent text-accent-foreground'
+					: 'text-muted-foreground hover:bg-accent/50'}"
+			>
+				<ScrollTextIcon class="size-4" />
+				Requests
+				{#if requestStats}
+					<span
+						class="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+						title="{requestStats.running} running of {requestStats.total} requests"
+					>
+						{#if requestStats.running > 0}
+							<span class="size-1.5 animate-pulse rounded-full bg-blue-500"></span>
+						{/if}
+						{formatCount(requestStats.total)}
+					</span>
+				{/if}
+			</a>
+		{/if}
+	</div>
 
 	<div class="flex items-center justify-between gap-2 border-t p-3">
 		<span class="min-w-0 truncate text-sm" title={user.email}>{user.name}</span>
@@ -392,7 +463,9 @@
 			>
 				<SettingsIcon class="size-4" />
 			</Button>
-			<Button variant="ghost" size="sm" onclick={signOut}>Sign out</Button>
+			<Button variant="ghost" size="icon" onclick={signOut} aria-label="Sign out" title="Sign out">
+				<LogOutIcon class="size-4" />
+			</Button>
 		</div>
 	</div>
 </aside>

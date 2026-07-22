@@ -17,7 +17,7 @@ const oidc =
 
 export function authOptions(): BetterAuthOptions {
 	return {
-		appName: 'AI Chat',
+		appName: 'Chatty',
 		...(config.ORIGIN ? { baseURL: config.ORIGIN } : {}),
 		secret: getAppSecret(),
 		database: getDb(),

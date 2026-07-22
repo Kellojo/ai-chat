@@ -60,14 +60,23 @@ export function toPublic(row: ConversationRow): Conversation {
 	};
 }
 
-export function listConversations(db: Db, userId: string): ConversationRow[] {
+export const CONVERSATIONS_PAGE_SIZE = 50;
+
+export function listConversations(
+	db: Db,
+	userId: string,
+	opts: { offset?: number; limit?: number } = {}
+): ConversationRow[] {
+	const limit = opts.limit ?? CONVERSATIONS_PAGE_SIZE;
+	const offset = opts.offset ?? 0;
 	return db
 		.prepare(
 			`SELECT * FROM conversations
 			 WHERE user_id = ? AND kind = 'chat' AND deleted_at IS NULL
-			 ORDER BY pinned DESC, updated_at DESC`
+			 ORDER BY pinned DESC, updated_at DESC
+			 LIMIT ? OFFSET ?`
 		)
-		.all(userId) as ConversationRow[];
+		.all(userId, limit, offset) as ConversationRow[];
 }
 
 export function listConversationsSince(db: Db, userId: string, since: number): ConversationRow[] {

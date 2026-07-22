@@ -10,6 +10,7 @@
 		conversation={data.conversation}
 		initialMessages={data.messages}
 		groups={data.groups}
+		mappings={data.mappings}
 		defaultModel={data.defaultModel}
 		timeFormat={data.timeFormat}
 		personas={data.personas}

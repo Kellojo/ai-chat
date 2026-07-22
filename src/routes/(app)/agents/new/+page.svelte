@@ -23,6 +23,6 @@
 			</Breadcrumb.Root>
 			<h1 class="text-xl font-semibold">New agent</h1>
 		</div>
-		<AgentEditor agent={null} models={data.models} tools={data.tools} />
+		<AgentEditor agent={null} groups={data.groups} mappings={data.mappings} tools={data.tools} />
 	</div>
 </div>

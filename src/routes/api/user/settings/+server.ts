@@ -25,14 +25,16 @@ const putSchema = z
 		theme: z.enum(THEMES).optional(),
 		suggestions: z.array(z.string().trim().min(1).max(200)).max(MAX_SUGGESTIONS).optional(),
 		globalInstructions: z.string().trim().max(MAX_GLOBAL_INSTRUCTIONS_LENGTH).optional(),
-		timeFormat: z.enum(TIME_FORMATS).optional()
+		timeFormat: z.enum(TIME_FORMATS).optional(),
+		sidebarOpen: z.boolean().optional()
 	})
 	.refine(
 		(data) =>
 			data.theme !== undefined ||
 			data.suggestions !== undefined ||
 			data.globalInstructions !== undefined ||
-			data.timeFormat !== undefined,
+			data.timeFormat !== undefined ||
+			data.sidebarOpen !== undefined,
 		{ message: 'Nothing to update' }
 	);
 
@@ -44,6 +46,9 @@ export const PUT: RequestHandler = async ({ locals, request }) => {
 	if (parsed.data.theme !== undefined) setUserSetting(db, user.id, 'theme', parsed.data.theme);
 	if (parsed.data.timeFormat !== undefined) {
 		setUserSetting(db, user.id, 'timeFormat', parsed.data.timeFormat);
+	}
+	if (parsed.data.sidebarOpen !== undefined) {
+		setUserSetting(db, user.id, 'sidebarOpen', parsed.data.sidebarOpen);
 	}
 	if (parsed.data.suggestions !== undefined) {
 		setUserSetting(db, user.id, 'suggestions', parsed.data.suggestions);

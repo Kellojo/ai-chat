@@ -11,7 +11,7 @@ import {
 	toPublic,
 	toPublicWithOverrides
 } from '$lib/server/db/repo/agents.js';
-import { findModel } from '$lib/server/db/repo/models.js';
+import { isSelectableModelRef } from '$lib/server/llm/mapped.js';
 import { AGENT_EVENT_NAMES } from '$lib/types.js';
 import type { RequestHandler } from './$types';
 
@@ -67,7 +67,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if ((input.providerId == null) !== (input.modelId == null)) {
 		error(400, { message: 'providerId and modelId must be provided together' });
 	}
-	if (input.providerId && input.modelId && !findModel(db, input.providerId, input.modelId)) {
+	if (
+		input.providerId &&
+		input.modelId &&
+		!isSelectableModelRef({ providerId: input.providerId, modelId: input.modelId }, db)
+	) {
 		error(400, { message: 'Unknown model' });
 	}
 	const nextRunAt =

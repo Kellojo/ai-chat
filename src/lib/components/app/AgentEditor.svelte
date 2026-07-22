@@ -9,7 +9,8 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import type { Agent, AgentEventName, AgentTriggerType, ChatModel } from '$lib/types.js';
+	import ModelSelect from '$lib/components/app/ModelSelect.svelte';
+	import type { Agent, AgentEventName, AgentTriggerType, ModelMapping, ModelsByProvider } from '$lib/types.js';
 	import { AGENT_EVENT_NAMES } from '$lib/types.js';
 
 	interface ToolInfo {
@@ -20,12 +21,14 @@
 
 	let {
 		agent,
-		models,
+		groups,
+		mappings = [],
 		tools,
 		readonly = false
 	}: {
 		agent: Agent | null;
-		models: ChatModel[];
+		groups: ModelsByProvider[];
+		mappings?: ModelMapping[];
 		tools: ToolInfo[];
 		readonly?: boolean;
 	} = $props();
@@ -64,13 +67,6 @@
 	});
 
 	let busy = $state(false);
-
-	const modelLabel = $derived(
-		form.modelValue === ''
-			? 'Default chat model'
-			: (models.find((m) => `${m.providerId}/${m.modelId}` === form.modelValue)?.displayName ??
-					form.modelValue)
-	);
 
 	const toolGroups = $derived.by(() => {
 		const groups: { server: string; tools: ToolInfo[] }[] = [];
@@ -209,19 +205,16 @@
 		<Card.Content class="flex flex-col gap-4">
 			<div class="flex flex-col gap-2">
 				<Label>Model</Label>
-				<Select.Root type="single" bind:value={form.modelValue} disabled={readonly}>
-					<Select.Trigger class="w-full">
-						{modelLabel}
-					</Select.Trigger>
-					<Select.Content class="max-h-[min(24rem,var(--bits-select-content-available-height))]">
-						<Select.Item value="">Default chat model</Select.Item>
-						{#each models as model (model.id)}
-							<Select.Item value={`${model.providerId}/${model.modelId}`}>
-								{model.displayName}
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+				<ModelSelect
+					{groups}
+					{mappings}
+					bind:value={form.modelValue}
+					onselect={() => {}}
+					disabled={readonly}
+					noneValue=""
+					noneLabel="Default chat model"
+					class="w-full"
+				/>
 			</div>
 			<div class="flex flex-col gap-2">
 				<Label for="agent-max-steps">Max steps</Label>

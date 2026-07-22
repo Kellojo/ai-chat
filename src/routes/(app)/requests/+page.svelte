@@ -9,6 +9,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { formatDateTime, formatTimeAgo } from '$lib/datetime.js';
+	import { formatCount } from '$lib/format.js';
 	import { onServerEvent } from '$lib/state/events.svelte.js';
 	import type { ProxyRequestStatus } from '$lib/types.js';
 	import type { PageData } from './$types';
@@ -51,7 +52,7 @@
 
 	function formatTokens(input: number | null, output: number | null): string {
 		if (input === null && output === null) return '—';
-		return `${input?.toLocaleString() ?? '—'} / ${output?.toLocaleString() ?? '—'}`;
+		return `${input === null ? '—' : formatCount(input)} / ${output === null ? '—' : formatCount(output)}`;
 	}
 
 	function pageHref(pageNum: number): string {
@@ -111,7 +112,7 @@
 				<Card.Header>
 					<Card.Description>Tokens in / out</Card.Description>
 					<Card.Title class="text-2xl">
-						{data.stats.inputTokens.toLocaleString()} / {data.stats.outputTokens.toLocaleString()}
+						{formatCount(data.stats.inputTokens)} / {formatCount(data.stats.outputTokens)}
 					</Card.Title>
 				</Card.Header>
 			</Card.Root>
@@ -130,7 +131,7 @@
 			<Card.Root size="sm">
 				<Card.Header>
 					<Card.Description>Caveman saved (est.)</Card.Description>
-					<Card.Title class="text-2xl">{data.stats.cavemanSaved.toLocaleString()}</Card.Title>
+					<Card.Title class="text-2xl">{formatCount(data.stats.cavemanSaved)}</Card.Title>
 				</Card.Header>
 			</Card.Root>
 		</div>

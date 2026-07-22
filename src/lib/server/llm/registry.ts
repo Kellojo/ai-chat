@@ -56,7 +56,8 @@ export function invalidateProviderCache(providerId: string): void {
 	cache.delete(providerId);
 }
 
-export class ModelUnavailableError extends Error {}
+export { ModelUnavailableError } from './mapped.js';
+import { ModelUnavailableError, resolveRefTargets } from './mapped.js';
 
 export function resolveModel(ref: { providerId: string; modelId: string }): LanguageModel {
 	const db = getDb();
@@ -77,7 +78,9 @@ export function roleModel(role: ModelRole): LanguageModel {
 	if (!model) {
 		throw new ModelUnavailableError(`No enabled default model configured for role "${role}"`);
 	}
-	return resolveModel({ providerId: model.provider_id, modelId: model.model_id });
+	return resolveModel(
+		resolveRefTargets({ providerId: model.provider_id, modelId: model.model_id }, db).targets[0]
+	);
 }
 
 export interface ModelsByProvider {

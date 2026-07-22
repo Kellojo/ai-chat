@@ -8,7 +8,7 @@
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head><title>Chatty</title><link rel="icon" href={favicon} /></svelte:head>
 <ModeWatcher defaultMode={data.theme} />
 {@render children()}
 <Toaster />

@@ -30,6 +30,14 @@ vi.mock('../llm/registry.js', async () => {
 	};
 });
 
+vi.mock('../llm/mapped.js', () => ({
+	resolveRefTargets: (ref: { providerId: string; modelId: string }) => ({
+		mappingId: null,
+		targets: [{ providerId: ref.providerId, modelId: ref.modelId }]
+	}),
+	isRetryableModelError: () => false
+}));
+
 const { getDb, closeDb } = await import('../db/index.js');
 const { handleChatRequest } = await import('./service.js');
 const { createConversation, getConversation } = await import('../db/repo/conversations.js');

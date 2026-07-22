@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import ModelSelect from '$lib/components/app/ModelSelect.svelte';
 	import type { ModelRole } from '$lib/types.js';
 	import type { PageData } from './$types';
 
@@ -35,7 +35,6 @@
 	let busy = $state<ModelRole | null>(null);
 
 	const modelsById = $derived(new Map(data.models.map((m) => [m.id, m])));
-	const providersById = $derived(new Map(data.providers.map((p) => [p.id, p])));
 
 	const enabledGroups = $derived(
 		data.providers
@@ -47,12 +46,21 @@
 			.filter((g) => g.models.length > 0)
 	);
 
-	function roleLabel(modelId: string | undefined): string {
-		if (!modelId) return 'Not set';
+	function roleValue(modelId: string | undefined): string {
+		if (!modelId) return '';
+		if (modelId.startsWith('mapping:')) {
+			const mapping = data.mappings.find((m) => `mapping:${m.id}` === modelId);
+			return mapping ? `${modelId}/${mapping.name}` : '';
+		}
 		const model = modelsById.get(modelId);
-		if (!model) return 'Not set';
-		const provider = providersById.get(model.providerId);
-		return `${model.displayName}${provider ? ` (${provider.name})` : ''}`;
+		return model ? `${model.providerId}/${model.modelId}` : '';
+	}
+
+	function modelIdFromValue(value: string): string | null {
+		if (!value) return null;
+		if (value.startsWith('mapping:')) return value.split('/')[0];
+		const model = data.models.find((m) => `${m.providerId}/${m.modelId}` === value);
+		return model?.id ?? null;
 	}
 
 	async function setRole(role: ModelRole, value: string) {
@@ -62,7 +70,7 @@
 			const res = await fetch('/api/roles', {
 				method: 'PUT',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ role, modelId: value === '' ? null : value })
+				body: JSON.stringify({ role, modelId: modelIdFromValue(value) })
 			});
 			if (!res.ok) {
 				const payload = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -92,26 +100,16 @@
 						<Label>{label}</Label>
 						<p class="text-sm text-muted-foreground">{description}</p>
 					</div>
-					<Select.Root
-						type="single"
-						value={data.roles[role] ?? ''}
-						onValueChange={(value) => setRole(role, value)}
-					>
-						<Select.Trigger class="w-72 shrink-0" disabled={busy !== null}>
-							{roleLabel(data.roles[role])}
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="">Not set</Select.Item>
-							{#each enabledGroups as group (group.provider.id)}
-								<Select.Group>
-									<Select.Label>{group.provider.name}</Select.Label>
-									{#each group.models as model (model.id)}
-										<Select.Item value={model.id}>{model.displayName}</Select.Item>
-									{/each}
-								</Select.Group>
-							{/each}
-						</Select.Content>
-					</Select.Root>
+					<ModelSelect
+						groups={enabledGroups}
+						mappings={data.mappings}
+						value={roleValue(data.roles[role])}
+						onselect={(value) => setRole(role, value)}
+						disabled={busy !== null}
+						noneValue=""
+						noneLabel="Not set"
+						class="w-72 shrink-0"
+					/>
 				</div>
 			{/each}
 		</Card.Content>

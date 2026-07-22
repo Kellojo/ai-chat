@@ -68,4 +68,18 @@ describe('conversations repo', () => {
 		const hits = searchConversations(db, 'u1', 'quarterly');
 		expect(new Set(hits.map((c) => c.id))).toEqual(new Set([byTitle.id, byContent.id]));
 	});
+
+	it('pages with limit and offset', () => {
+		const ids = Array.from({ length: 5 }, (_, i) => {
+			const c = createConversation(db, 'u1', { title: `c${i}` });
+			db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(1000 + i, c.id);
+			return c.id;
+		});
+		const page1 = listConversations(db, 'u1', { limit: 2 });
+		expect(page1.map((c) => c.id)).toEqual([ids[4], ids[3]]);
+		const page2 = listConversations(db, 'u1', { limit: 2, offset: 2 });
+		expect(page2.map((c) => c.id)).toEqual([ids[2], ids[1]]);
+		const page3 = listConversations(db, 'u1', { limit: 2, offset: 4 });
+		expect(page3.map((c) => c.id)).toEqual([ids[0]]);
+	});
 });

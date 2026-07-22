@@ -28,6 +28,7 @@
 		type Agent,
 		type ChatMessage,
 		type Conversation,
+		type ModelMapping,
 		type ModelsByProvider,
 		type UIMessage
 	} from '$lib/types.js';
@@ -37,6 +38,7 @@
 		conversation: initialConversation,
 		initialMessages,
 		groups,
+		mappings = [],
 		defaultModel,
 		timeFormat = 'auto',
 		personas,
@@ -45,6 +47,7 @@
 		conversation: Conversation;
 		initialMessages: ChatMessage[];
 		groups: ModelsByProvider[];
+		mappings?: ModelMapping[];
 		defaultModel?: { providerId: string; modelId: string } | null;
 		timeFormat?: TimeFormat;
 		personas?: Agent[];
@@ -277,6 +280,7 @@
 	<ChatTopbar
 		{conversation}
 		{groups}
+		{mappings}
 		{defaultModel}
 		{personas}
 		onupdated={(updated) => (conversation = updated)}

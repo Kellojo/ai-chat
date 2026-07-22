@@ -7,7 +7,16 @@
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
-	let sidebarOpen = $state(true);
+	let sidebarOpen = $state(data.sidebarOpen);
+
+	function setSidebarOpen(open: boolean) {
+		sidebarOpen = open;
+		void fetch('/api/user/settings', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ sidebarOpen: open })
+		});
+	}
 
 	onMount(() => startServerEvents());
 </script>
@@ -20,8 +29,9 @@
 		<Sidebar
 			user={data.user}
 			conversations={data.conversations}
+			hasMore={data.hasMoreConversations}
 			unreadIds={data.unreadIds}
-			onclose={() => (sidebarOpen = false)}
+			onclose={() => setSidebarOpen(false)}
 		/>
 	</div>
 	<main
@@ -32,7 +42,7 @@
 		{#if !sidebarOpen}
 			<button
 				class="absolute top-2 left-2 z-10 rounded-md border bg-background p-1.5 text-muted-foreground hover:text-foreground"
-				onclick={() => (sidebarOpen = true)}
+				onclick={() => setSidebarOpen(true)}
 				aria-label="Open sidebar"
 			>
 				<PanelLeftIcon class="size-4" />

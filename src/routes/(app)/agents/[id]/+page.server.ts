@@ -2,7 +2,11 @@ import { error } from '@sveltejs/kit';
 import { requireUser } from '$lib/server/auth/guards.js';
 import { getDb } from '$lib/server/db/index.js';
 import { getAgent, toPublic } from '$lib/server/db/repo/agents.js';
-import { listEnabledModels, toPublic as modelToPublic } from '$lib/server/db/repo/models.js';
+import {
+	listEnabledModelMappings,
+	toPublic as mappingToPublic
+} from '$lib/server/db/repo/model-mappings.js';
+import { listModelsGrouped } from '$lib/server/llm/registry.js';
 import { buildTools } from '$lib/server/tools/registry.js';
 import type { PageServerLoad } from './$types';
 
@@ -24,7 +28,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.sort((a, b) => a.server.localeCompare(b.server) || a.name.localeCompare(b.name));
 		return {
 			agent: toPublic(agent),
-			models: listEnabledModels(db).map(modelToPublic),
+			groups: listModelsGrouped(),
+			mappings: listEnabledModelMappings(db).map(mappingToPublic),
 			tools
 		};
 	} finally {

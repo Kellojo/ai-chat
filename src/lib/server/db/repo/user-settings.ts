@@ -56,11 +56,17 @@ export function getTimeFormat(db: Db, userId: string): TimeFormat {
 		: DEFAULT_USER_SETTINGS.timeFormat;
 }
 
+export function getSidebarOpen(db: Db, userId: string): boolean {
+	const value = getUserSetting<boolean>(db, userId, 'sidebarOpen');
+	return typeof value === 'boolean' ? value : DEFAULT_USER_SETTINGS.sidebarOpen;
+}
+
 export function getUserSettings(db: Db, userId: string): UserSettings {
 	return {
 		theme: getTheme(db, userId),
 		suggestions: getSuggestions(db, userId),
 		globalInstructions: getGlobalInstructions(db, userId),
-		timeFormat: getTimeFormat(db, userId)
+		timeFormat: getTimeFormat(db, userId),
+		sidebarOpen: getSidebarOpen(db, userId)
 	};
 }

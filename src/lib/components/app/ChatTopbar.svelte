@@ -9,11 +9,13 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import SettingsIcon from '@lucide/svelte/icons/settings-2';
 	import ModelPicker from './ModelPicker.svelte';
-	import type { Agent, Conversation, ModelsByProvider } from '$lib/types.js';
+	import { decodeModelRef, encodeModelRef } from '$lib/model-ref.js';
+	import type { Agent, Conversation, ModelMapping, ModelsByProvider } from '$lib/types.js';
 
 	let {
 		conversation,
 		groups,
+		mappings = [],
 		defaultModel,
 		personas,
 		personaLocked = false,
@@ -21,6 +23,7 @@
 	}: {
 		conversation: Conversation;
 		groups: ModelsByProvider[];
+		mappings?: ModelMapping[];
 		defaultModel?: { providerId: string; modelId: string } | null;
 		personas?: Agent[];
 		personaLocked?: boolean;
@@ -31,11 +34,11 @@
 	let saving = $state(false);
 
 	const defaultModelValue = $derived(
-		defaultModel ? `${defaultModel.providerId}/${defaultModel.modelId}` : ''
+		defaultModel ? encodeModelRef(defaultModel) : ''
 	);
 	const currentModelValue = $derived(
 		conversation.providerId && conversation.modelId
-			? `${conversation.providerId}/${conversation.modelId}`
+			? encodeModelRef({ providerId: conversation.providerId, modelId: conversation.modelId })
 			: defaultModelValue
 	);
 
@@ -61,8 +64,8 @@
 	}
 
 	function selectModel(value: string) {
-		const [providerId, ...rest] = value.split('/');
-		patch({ providerId, modelId: rest.join('/') });
+		const { providerId, modelId } = decodeModelRef(value);
+		patch({ providerId, modelId });
 	}
 
 	const personaLabel = $derived(
@@ -73,7 +76,7 @@
 </script>
 
 <header class="flex items-center gap-3 border-b px-4 py-2">
-	<ModelPicker {groups} value={currentModelValue} onselect={selectModel} disabled={saving} />
+	<ModelPicker {groups} {mappings} value={currentModelValue} onselect={selectModel} disabled={saving} />
 
 	{#if personas}
 		<Select.Root

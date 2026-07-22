@@ -14,6 +14,7 @@
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import XIcon from '@lucide/svelte/icons/x';
 	import ModelPicker from '$lib/components/app/ModelPicker.svelte';
+	import { decodeModelRef } from '$lib/model-ref.js';
 	import { pendingMessage } from '$lib/state/pending-message.svelte.js';
 	import { createFileDrop } from '$lib/state/file-drop.svelte.js';
 	import { DEFAULT_SUGGESTIONS } from '$lib/user-settings.js';
@@ -55,9 +56,9 @@
 		try {
 			const body: Record<string, string> = {};
 			if (selectedValue) {
-				const [providerId, ...rest] = selectedValue.split('/');
+				const { providerId, modelId } = decodeModelRef(selectedValue);
 				body.providerId = providerId;
-				body.modelId = rest.join('/');
+				body.modelId = modelId;
 			}
 			if (personaId) body.agentId = personaId;
 			const res = await fetch('/api/conversations', {
@@ -135,6 +136,7 @@
 			<PromptInputActions class="justify-between">
 				<ModelPicker
 					groups={data.groups}
+					mappings={data.mappings}
 					value={selectedValue}
 					onselect={(v) => (picked = v)}
 					disabled={busy}

@@ -6,6 +6,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { formatDateTime } from '$lib/datetime.js';
+	import { formatCount } from '$lib/format.js';
 	import { onServerEvent } from '$lib/state/events.svelte.js';
 	import type { ProxyRequestStatus } from '$lib/types.js';
 	import type { PageData } from './$types';
@@ -136,9 +137,9 @@
 				<Card.Content>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
 						<dt class="text-muted-foreground">Input tokens</dt>
-						<dd>{request.inputTokens?.toLocaleString() ?? '—'}</dd>
+						<dd>{request.inputTokens === null ? '—' : formatCount(request.inputTokens)}</dd>
 						<dt class="text-muted-foreground">Output tokens</dt>
-						<dd>{request.outputTokens?.toLocaleString() ?? '—'}</dd>
+						<dd>{request.outputTokens === null ? '—' : formatCount(request.outputTokens)}</dd>
 						<dt class="text-muted-foreground">Cost</dt>
 						<dd>
 							{#if request.costUsd !== null}
@@ -165,14 +166,14 @@
 								<dt class="text-muted-foreground">Caveman saved (est.)</dt>
 								<dd>
 									{#if request.compression.caveman.estSaved !== null}
-										{request.compression.caveman.estSaved.toLocaleString()} tokens
+										{formatCount(request.compression.caveman.estSaved)} tokens
 									{:else}
 										—
 									{/if}
 								</dd>
 								{#if request.compression.caveman.overhead !== undefined}
 									<dt class="text-muted-foreground">Caveman overhead</dt>
-									<dd>{request.compression.caveman.overhead.toLocaleString()} input tokens</dd>
+									<dd>{formatCount(request.compression.caveman.overhead)} input tokens</dd>
 								{/if}
 								{#if request.compression.caveman.basis}
 									<dt class="text-muted-foreground">Caveman estimate basis</dt>
