@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { authClient } from '$lib/auth-client.js';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 
@@ -24,7 +25,9 @@
 		if (error) {
 			errorMessage = error.message ?? 'Sign up failed';
 			loading = false;
+			return;
 		}
+		await goto(resolve('/'));
 	}
 </script>
 
