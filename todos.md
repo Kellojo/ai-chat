@@ -7,7 +7,6 @@ General Questions:
 
 Todos:
 
-- Make group headers in the settings more pronounced
 - Also allow selecting model mappings for regular chat/agents and use the same logic
 - Also route regular AI requests through the existing new AI proxy module, to ensure they profit from headroom/caveman, if enabled
 
@@ -21,6 +20,7 @@ Next Steps:
 - Code review pass
 - Security hardening pass
 - Rebrand to Chatty
+- Keep sidebar expansion in the users preferences and store the current state there (don't make this available in the settings menu)
 
 Ideas for later
 

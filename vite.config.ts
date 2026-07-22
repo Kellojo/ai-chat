@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
 	if (mode !== 'test' && existsSync('.env')) process.loadEnvFile();
 
 	return {
+		define: {
+			__VERSION__: JSON.stringify(process.env.npm_package_version)
+		},
 		plugins: [
 			tailwindcss(),
 			sveltekit({
