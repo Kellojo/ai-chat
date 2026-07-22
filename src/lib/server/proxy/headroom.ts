@@ -1,5 +1,6 @@
 import type { ModelMessage } from 'ai';
 import { compressVercelMessages } from 'headroom-ai/vercel-ai';
+import { getHeadroomProxyUrl, isHeadroomProxyRunning, startHeadroomProxy } from './headroom-proxy.js';
 
 export interface HeadroomResult {
 	messages: ModelMessage[];
@@ -12,12 +13,18 @@ export async function applyHeadroom(
 	model: string
 ): Promise<HeadroomResult | null> {
 	try {
+		// Ensure proxy is running
+		const started = await startHeadroomProxy();
+		if (!started || !isHeadroomProxyRunning()) {
+			return null;
+		}
+
 		const result = await compressVercelMessages(messages, {
 			model,
-			baseUrl: process.env.HEADROOM_BASE_URL,
-			apiKey: process.env.HEADROOM_API_KEY,
+			baseUrl: getHeadroomProxyUrl(),
 			fallback: true
 		});
+
 		return {
 			messages: result.messages as ModelMessage[],
 			before: result.tokensBefore,

@@ -9,7 +9,7 @@ let headroomBehavior: 'ok' | 'reject' = 'ok';
 
 vi.mock('$lib/server/llm/registry.js', async () => {
 	const { MockLanguageModelV3 } = await import('ai/test');
-	const { simulateReadableStream } = await import('ai');
+	const simulateReadableStream = (await import('ai')).simulateReadableStream;
 	class ModelUnavailableError extends Error {}
 	const model = new MockLanguageModelV3({
 		doStream: async (options) => {
@@ -59,6 +59,13 @@ vi.mock('headroom-ai/vercel-ai', () => ({
 			compressed: true
 		};
 	}
+}));
+
+vi.mock('./headroom-proxy.js', () => ({
+	startHeadroomProxy: async () => true,
+	isHeadroomProxyRunning: () => true,
+	getHeadroomProxyUrl: () => 'http://localhost:8787',
+	stopHeadroomProxy: () => {}
 }));
 
 const { getDb, closeDb } = await import('../db/index.js');
@@ -149,7 +156,7 @@ beforeEach(async () => {
 });
 
 describe('proxy compression: caveman', () => {
-	it('injects the caveman prompt as a system message alongside client system messages', async () => {
+	it('merges the caveman prompt into the client system message', async () => {
 		setUserSetting(getDb(), 'u1', 'proxyCaveman', 'full');
 		const res = await callResponse(POST_CHAT, {
 			headers: auth(),
@@ -165,8 +172,8 @@ describe('proxy compression: caveman', () => {
 
 		const prompt = promptMessages();
 		const systems = prompt.filter((m) => m.role === 'system');
-		expect(systems[0].content).toBe('client system');
-		expect(systems[1].content).toBe(CAVEMAN_PROMPTS.full);
+		expect(systems.length).toBe(1);
+		expect(systems[0].content).toBe(`client system\n\n${CAVEMAN_PROMPTS.full}`);
 		expect(prompt[prompt.length - 1].role).toBe('user');
 		expect(promptText(prompt[prompt.length - 1])).toBe('hi');
 
