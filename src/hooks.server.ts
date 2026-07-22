@@ -9,11 +9,9 @@ import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
 import { failRunningProxyRequests } from '$lib/server/db/repo/proxy-requests.js';
-import { seedBuiltinProviders } from '$lib/server/db/seed.js';
 import { reconcileMemoryFts } from '$lib/server/memory/fts.js';
 
 if (!building) {
-	seedBuiltinProviders(getDb());
 	seedBuiltinAgent(getDb());
 	seedMemoryCleanupAgent(getDb());
 	const interrupted = failRunningAgentRuns(getDb());

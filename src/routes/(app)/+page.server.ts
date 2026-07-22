@@ -16,7 +16,7 @@ export const load: PageServerLoad = ({ locals }) => {
 		defaultModel = { providerId: roleModel.provider_id, modelId: roleModel.model_id };
 	} else {
 		const enabled = listEnabledModels(db);
-		const first = findModel(db, enabled[0].provider_id, enabled[0].model_id);
+		const first = enabled.length > 0 ? findModel(db, enabled[0].provider_id, enabled[0].model_id) : null;
 		if (first) {
 			defaultModel = { providerId: first.provider_id, modelId: first.model_id };
 		}

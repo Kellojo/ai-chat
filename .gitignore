@@ -27,6 +27,7 @@ test-results
 
 # Local data volumes
 /data
+/_data
 /memory
 /documents
 /workspaces

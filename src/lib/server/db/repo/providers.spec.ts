@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { openDatabase, type Db } from '../index.js';
 import { createProvider, getProvider, toPublic, updateProvider } from './providers.js';
-import { seedBuiltinProviders } from '../seed.js';
 import { decryptSecret } from '../../crypto.js';
 
 let db: Db;
@@ -49,24 +48,5 @@ describe('providers repo', () => {
 		).run(p.id);
 		db.prepare('DELETE FROM providers WHERE id = ?').run(p.id);
 		expect(db.prepare("SELECT * FROM models WHERE id = 'm-c'").get()).toBeUndefined();
-	});
-});
-
-describe('seedBuiltinProviders', () => {
-	it('seeds two disabled providers exactly once', () => {
-		const fresh = openDatabase(':memory:');
-		seedBuiltinProviders(fresh);
-		seedBuiltinProviders(fresh);
-		const rows = fresh.prepare('SELECT * FROM providers ORDER BY name').all() as {
-			name: string;
-			type: string;
-			base_url: string | null;
-			enabled: number;
-		}[];
-		expect(rows).toHaveLength(2);
-		expect(rows[0]).toMatchObject({ name: 'Anthropic', type: 'anthropic', enabled: 0 });
-		expect(rows[1]).toMatchObject({ name: 'LM Studio', type: 'openai-compatible', enabled: 0 });
-		expect(rows[1].base_url).toContain('1234');
-		fresh.close();
 	});
 });
