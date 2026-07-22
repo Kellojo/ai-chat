@@ -35,7 +35,6 @@ import {
 	type CavemanBaseline,
 	type CavemanLevel
 } from './caveman.js';
-import { applyHeadroom } from './headroom.js';
 import {
 	chatCompletionsSchema,
 	createAssembler,
@@ -162,7 +161,6 @@ interface CompressionContext {
 	userId: string;
 	cavemanLevel: CavemanLevel;
 	baseline: CavemanBaseline | null;
-	headroom: { before: number; after: number } | null;
 }
 
 async function prepareCompression(
@@ -173,35 +171,26 @@ async function prepareCompression(
 	cavemanMode: CavemanMode
 ): Promise<CompressionContext> {
 	const cavemanLevel = parseCavemanLevel(getUserSetting(db, userId, 'proxyCaveman'));
-	const headroomEnabled = getUserSetting<boolean>(db, userId, 'proxyHeadroom') === true;
-	let headroom: CompressionContext['headroom'] = null;
-	if (headroomEnabled) {
-		const compressed = await applyHeadroom(prepared.messages, model);
-		if (compressed) {
-			prepared.messages = compressed.messages;
-			headroom = { before: compressed.before, after: compressed.after };
+	let baseline: CavemanBaseline | null = null;
+	if (cavemanLevel !== 'off') {
+		baseline = getCavemanBaseline(db, userId);
+		const cavemanContent = CAVEMAN_PROMPTS[cavemanLevel];
+		let index = 0;
+		while (index < prepared.messages.length && prepared.messages[index].role === 'system') {
+			index++;
+		}
+		if (cavemanMode === 'instructions' || index >= prepared.messages.length) {
+			prepared.instructions = applyCaveman(prepared.instructions, cavemanLevel);
+		} else if (index > 0) {
+			const firstSystemMsg = prepared.messages[0]!;
+			firstSystemMsg.content = `${firstSystemMsg.content}\n\n${cavemanContent}`;
+		} else if (index === 0 && prepared.instructions) {
+			prepared.instructions = applyCaveman(prepared.instructions, cavemanLevel);
+		} else {
+			prepared.messages = [{ role: 'system', content: cavemanContent }, ...prepared.messages];
 		}
 	}
-	let baseline: CavemanBaseline | null = null;
-		if (cavemanLevel !== 'off') {
-			baseline = getCavemanBaseline(db, userId);
-			const cavemanContent = CAVEMAN_PROMPTS[cavemanLevel];
-			let index = 0;
-			while (index < prepared.messages.length && prepared.messages[index].role === 'system') {
-				index++;
-			}
-			if (cavemanMode === 'instructions' || index >= prepared.messages.length) {
-				prepared.instructions = applyCaveman(prepared.instructions, cavemanLevel);
-			} else if (index > 0) {
-				const firstSystemMsg = prepared.messages[0]!;
-				firstSystemMsg.content = `${firstSystemMsg.content}\n\n${cavemanContent}`;
-			} else if (index === 0 && prepared.instructions) {
-				prepared.instructions = applyCaveman(prepared.instructions, cavemanLevel);
-			} else {
-				prepared.messages = [{ role: 'system', content: cavemanContent }, ...prepared.messages];
-			}
-	}
-	return { userId, cavemanLevel, baseline, headroom };
+	return { userId, cavemanLevel, baseline };
 }
 
 function finalizeCompression(
@@ -226,9 +215,6 @@ function finalizeCompression(
 			};
 		} else if (outputTokens != null) {
 			recordCavemanBaseline(db, ctx.userId, outputTokens);
-		}
-		if (ctx.headroom) {
-			compression = { ...compression, headroom: ctx.headroom };
 		}
 		return compression;
 	} catch {

@@ -5,7 +5,6 @@ process.env.DATABASE_PATH = ':memory:';
 process.env.APP_SECRET = 'test-secret-test-secret';
 
 let capturedOptions: unknown;
-let headroomBehavior: 'ok' | 'reject' = 'ok';
 
 vi.mock('$lib/server/llm/registry.js', async () => {
 	const { MockLanguageModelV3 } = await import('ai/test');
@@ -44,29 +43,6 @@ vi.mock('$lib/server/llm/registry.js', async () => {
 		ModelUnavailableError
 	};
 });
-
-vi.mock('headroom-ai/vercel-ai', () => ({
-	compressVercelMessages: async () => {
-		if (headroomBehavior === 'reject') throw new Error('headroom down');
-		return {
-			messages: [{ role: 'user', content: 'compressed' }],
-			tokensBefore: 1000,
-			tokensAfter: 400,
-			tokensSaved: 600,
-			compressionRatio: 0.4,
-			transformsApplied: ['test'],
-			ccrHashes: [],
-			compressed: true
-		};
-	}
-}));
-
-vi.mock('./headroom-proxy.js', () => ({
-	startHeadroomProxy: async () => true,
-	isHeadroomProxyRunning: () => true,
-	getHeadroomProxyUrl: () => 'http://localhost:8787',
-	stopHeadroomProxy: () => {}
-}));
 
 const { getDb, closeDb } = await import('../db/index.js');
 const { createApiKey } = await import('../db/repo/api-keys.js');
@@ -152,7 +128,6 @@ beforeEach(async () => {
 	createModel(db, { providerId, modelId: 'm1' });
 	rawKey = (await createApiKey(db, { userId: 'u1', label: 'k', scopes: ['llm:invoke'] })).rawKey;
 	capturedOptions = undefined;
-	headroomBehavior = 'ok';
 });
 
 describe('proxy compression: caveman', () => {
@@ -221,33 +196,6 @@ describe('proxy compression: caveman', () => {
 		const compression = compressionRow() as { caveman: { level: string; estSaved: number } };
 		expect(compression.caveman.level).toBe('ultra');
 		expect(compression.caveman.estSaved).toBe(Math.round((2 * 0.75) / 0.25));
-	});
-});
-
-describe('proxy compression: headroom', () => {
-	it('sends compressed messages and records before/after tokens', async () => {
-		setUserSetting(getDb(), 'u1', 'proxyHeadroom', true);
-		const res = await callResponse(POST_CHAT, {
-			headers: auth(),
-			body: { model: 'm1', messages: [{ role: 'user', content: 'hi' }] }
-		});
-		expect(res.status).toBe(200);
-		const prompt = promptMessages();
-		expect(prompt.map((m) => m.role)).toEqual(['user']);
-		expect(promptText(prompt[0])).toBe('compressed');
-		expect(compressionRow()).toEqual({ headroom: { before: 1000, after: 400 } });
-	});
-
-	it('proceeds uncompressed when headroom fails', async () => {
-		setUserSetting(getDb(), 'u1', 'proxyHeadroom', true);
-		headroomBehavior = 'reject';
-		const res = await callResponse(POST_CHAT, {
-			headers: auth(),
-			body: { model: 'm1', messages: [{ role: 'user', content: 'hi' }] }
-		});
-		expect(res.status).toBe(200);
-		expect(promptText(promptMessages()[0])).toBe('hi');
-		expect(compressionRow()).toBeNull();
 	});
 });
 

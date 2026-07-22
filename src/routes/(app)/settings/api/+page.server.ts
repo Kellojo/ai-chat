@@ -18,13 +18,11 @@ export const load: PageServerLoad = ({ locals }) => {
 		apiKeys: listApiKeys(db, user.id).map(toPublic),
 		timeFormat: getTimeFormat(db, user.id),
 		proxySettings: {
-			caveman: CAVEMAN_LEVELS.includes(caveman as CavemanLevel) ? (caveman as CavemanLevel) : 'off',
-			headroom: getUserSetting<boolean>(db, user.id, 'proxyHeadroom') === true
+			caveman: CAVEMAN_LEVELS.includes(caveman as CavemanLevel) ? (caveman as CavemanLevel) : 'off'
 		},
 		savings: {
 			total: stats.total,
-			cavemanSaved: stats.cavemanSaved,
-			headroomSaved: stats.headroomSaved
+			cavemanSaved: stats.cavemanSaved
 		}
 	};
 };

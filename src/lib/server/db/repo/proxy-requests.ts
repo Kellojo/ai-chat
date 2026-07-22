@@ -197,7 +197,6 @@ export interface ProxyRequestStats {
 	costUsd: number;
 	distinctModels: number;
 	cavemanSaved: number;
-	headroomSaved: number;
 }
 
 export function proxyRequestStats(db: Db, filters: ProxyRequestFilters = {}): ProxyRequestStats {
@@ -212,9 +211,8 @@ export function proxyRequestStats(db: Db, filters: ProxyRequestFilters = {}): Pr
 				COALESCE(SUM(output_tokens), 0) AS output_tokens,
 				COALESCE(SUM(cost_usd), 0) AS cost_usd,
 				COUNT(DISTINCT requested_model) AS distinct_models,
-				COALESCE(SUM(CAST(json_extract(compression, '$.caveman.estSaved') AS INTEGER)), 0) AS caveman_saved,
-				COALESCE(SUM(CAST(json_extract(compression, '$.headroom.before') AS INTEGER) - CAST(json_extract(compression, '$.headroom.after') AS INTEGER)), 0) AS headroom_saved
-			 FROM proxy_requests ${where}`
+			COALESCE(SUM(CAST(json_extract(compression, '$.caveman.estSaved') AS INTEGER)), 0) AS caveman_saved
+		 FROM proxy_requests ${where}`
 		)
 		.get(...args) as {
 		total: number;
@@ -226,7 +224,6 @@ export function proxyRequestStats(db: Db, filters: ProxyRequestFilters = {}): Pr
 		cost_usd: number;
 		distinct_models: number;
 		caveman_saved: number;
-		headroom_saved: number;
 	};
 	return {
 		total: row.total,
@@ -237,8 +234,7 @@ export function proxyRequestStats(db: Db, filters: ProxyRequestFilters = {}): Pr
 		outputTokens: row.output_tokens,
 		costUsd: row.cost_usd,
 		distinctModels: row.distinct_models,
-		cavemanSaved: row.caveman_saved,
-		headroomSaved: row.headroom_saved
+		cavemanSaved: row.caveman_saved
 	};
 }
 

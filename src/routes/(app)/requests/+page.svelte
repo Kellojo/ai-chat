@@ -133,12 +133,6 @@
 					<Card.Title class="text-2xl">{data.stats.cavemanSaved.toLocaleString()}</Card.Title>
 				</Card.Header>
 			</Card.Root>
-			<Card.Root size="sm">
-				<Card.Header>
-					<Card.Description>Headroom saved</Card.Description>
-					<Card.Title class="text-2xl">{data.stats.headroomSaved.toLocaleString()}</Card.Title>
-				</Card.Header>
-			</Card.Root>
 		</div>
 
 		<form method="GET" class="flex flex-wrap items-end gap-2">

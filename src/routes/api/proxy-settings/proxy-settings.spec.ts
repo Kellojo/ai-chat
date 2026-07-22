@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 
 interface SettingsBody {
-	settings: { caveman: string; headroom: boolean };
+	settings: { caveman: string };
 }
 
 describe('proxy-settings endpoint', () => {
@@ -64,30 +64,28 @@ describe('proxy-settings endpoint', () => {
 
 	it('rejects invalid bodies', async () => {
 		expect((await call(POST, { user: u1, body: { caveman: 'maximum' } })).status).toBe(400);
-		expect((await call(POST, { user: u1, body: { headroom: 'yes' } })).status).toBe(400);
 		expect((await call(POST, { user: u1, body: {} })).status).toBe(400);
 		expect((await call(POST, { user: u1, body: null })).status).toBe(400);
 	});
 
-	it('saves caveman and headroom settings and returns them', async () => {
+	it('saves the caveman setting and returns it', async () => {
 		const res = await call<SettingsBody>(POST, {
 			user: u1,
-			body: { caveman: 'full', headroom: true }
+			body: { caveman: 'full' }
 		});
 		expect(res.status).toBe(200);
-		expect(res.body.settings).toEqual({ caveman: 'full', headroom: true });
+		expect(res.body.settings).toEqual({ caveman: 'full' });
 		expect(getUserSetting(getDb(), 'u1', 'proxyCaveman')).toBe('full');
-		expect(getUserSetting(getDb(), 'u1', 'proxyHeadroom')).toBe(true);
 	});
 
-	it('updates one key without clobbering the other', async () => {
-		await call(POST, { user: u1, body: { caveman: 'wenyan', headroom: true } });
+	it('updates the caveman setting', async () => {
+		await call(POST, { user: u1, body: { caveman: 'wenyan' } });
 		const res = await call<SettingsBody>(POST, { user: u1, body: { caveman: 'off' } });
-		expect(res.body.settings).toEqual({ caveman: 'off', headroom: true });
+		expect(res.body.settings).toEqual({ caveman: 'off' });
 	});
 
-	it('falls back to defaults for unset or invalid values', async () => {
-		const res = await call<SettingsBody>(POST, { user: u1, body: { headroom: true } });
-		expect(res.body.settings.caveman).toBe('off');
+	it('falls back to default for unset value', async () => {
+		const res = await call<SettingsBody>(POST, { user: u1, body: { caveman: 'lite' } });
+		expect(res.body.settings.caveman).toBe('lite');
 	});
 });

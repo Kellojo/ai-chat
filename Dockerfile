@@ -16,12 +16,6 @@ RUN pnpm build
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-
-# Install Python and headroom proxy
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && \
-    pip3 install --no-cache-dir "headroom-ai[all]" && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
 RUN corepack enable pnpm && groupadd -r app && useradd -r -g app app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --from=deps /app/node_modules ./node_modules

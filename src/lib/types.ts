@@ -163,7 +163,6 @@ export interface ProxyCompression {
 		overhead?: number;
 		basis?: 'baseline' | 'ratio';
 	} | null;
-	headroom?: { before: number; after: number } | null;
 }
 
 export interface ProxyRequest {

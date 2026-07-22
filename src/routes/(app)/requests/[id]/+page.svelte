@@ -179,19 +179,6 @@
 									<dd>{request.compression.caveman.basis}</dd>
 								{/if}
 							{/if}
-							{#if request.compression.headroom}
-								<dt class="text-muted-foreground">Headroom before / after</dt>
-								<dd>
-									{request.compression.headroom.before.toLocaleString()} / {request.compression.headroom.after.toLocaleString()}
-									tokens
-								</dd>
-								<dt class="text-muted-foreground">Headroom saved</dt>
-								<dd>
-									{(
-										request.compression.headroom.before - request.compression.headroom.after
-									).toLocaleString()} tokens
-								</dd>
-							{/if}
 						</dl>
 					</Card.Content>
 				</Card.Root>

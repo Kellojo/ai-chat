@@ -67,13 +67,11 @@ describe('proxy-requests repo', () => {
 		finalizeProxyRequest(db, row.id, {
 			status: 'complete',
 			compression: {
-				caveman: { level: 'full', estSaved: 42 },
-				headroom: { before: 1000, after: 700 }
+				caveman: { level: 'full', estSaved: 42 }
 			}
 		});
 		expect(toPublic(getProxyRequest(db, row.id)!).compression).toEqual({
-			caveman: { level: 'full', estSaved: 42 },
-			headroom: { before: 1000, after: 700 }
+			caveman: { level: 'full', estSaved: 42 }
 		});
 	});
 
@@ -110,8 +108,7 @@ describe('proxy-requests repo', () => {
 		finalizeProxyRequest(db, b.id, {
 			status: 'failed',
 			latencyMs: 300,
-			error: 'boom',
-			compression: { headroom: { before: 1000, after: 400 } }
+			error: 'boom'
 		});
 		const c = logRequest('u2', 'fast');
 		finalizeProxyRequest(db, c.id, { status: 'complete', latencyMs: 200, outputTokens: 7 });
@@ -126,8 +123,7 @@ describe('proxy-requests repo', () => {
 			outputTokens: 27,
 			costUsd: 0.001,
 			distinctModels: 2,
-			cavemanSaved: 5,
-			headroomSaved: 600
+			cavemanSaved: 5
 		});
 
 		const u1 = proxyRequestStats(db, { userId: 'u1' });

@@ -87,8 +87,6 @@
 
 	let caveman = $state<CavemanLevel>(data.proxySettings.caveman);
 	let cavemanBusy = $state(false);
-	let headroom = $state(data.proxySettings.headroom);
-	let headroomBusy = $state(false);
 
 	const selectedScopes = $derived(
 		[
@@ -187,21 +185,6 @@
 			toast.error(e instanceof Error ? e.message : 'Failed to update Caveman level');
 		} finally {
 			cavemanBusy = false;
-		}
-	}
-
-	async function changeHeadroom(checked: boolean) {
-		if (headroomBusy || checked === headroom) return;
-		const previous = headroom;
-		headroom = checked;
-		headroomBusy = true;
-		try {
-			await api('/api/proxy-settings', 'POST', { headroom: checked });
-		} catch (e) {
-			headroom = previous;
-			toast.error(e instanceof Error ? e.message : 'Failed to update Headroom');
-		} finally {
-			headroomBusy = false;
 		}
 	}
 </script>
@@ -430,23 +413,6 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<div class="flex items-center justify-between gap-6">
-				<div class="flex min-w-0 flex-col gap-1">
-					<Label for="proxy-headroom">Headroom</Label>
-					<p class="text-sm text-muted-foreground">Compress context via a Headroom proxy.</p>
-					<p class="text-xs text-muted-foreground">
-						Requires a Headroom proxy reachable from the server (<code
-							class="rounded bg-muted px-1 py-0.5">HEADROOM_BASE_URL</code
-						>, default http://localhost:8787); requests pass through uncompressed when it's down.
-					</p>
-				</div>
-				<Switch
-					id="proxy-headroom"
-					checked={headroom}
-					onCheckedChange={changeHeadroom}
-					disabled={headroomBusy}
-				/>
-			</div>
 			<div class="flex flex-col gap-2 border-t pt-4">
 				<Label>Your savings</Label>
 				<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
@@ -454,8 +420,6 @@
 					<dd>{data.savings.total.toLocaleString()}</dd>
 					<dt class="text-muted-foreground">Caveman saved (est.)</dt>
 					<dd>{data.savings.cavemanSaved.toLocaleString()} tokens</dd>
-					<dt class="text-muted-foreground">Headroom saved</dt>
-					<dd>{data.savings.headroomSaved.toLocaleString()} tokens</dd>
 				</dl>
 			</div>
 		</Card.Content>

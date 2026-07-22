@@ -8,7 +8,7 @@ General Questions:
 Todos:
 
 - Also allow selecting model mappings for regular chat/agents and use the same logic
-- Also route regular AI requests through the existing new AI proxy module, to ensure they profit from headroom/caveman, if enabled
+- For Topkens in / out, also use the 4k, 4m, ... formatter
 
 Next Steps:
 
