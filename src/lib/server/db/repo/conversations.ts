@@ -119,7 +119,7 @@ export function createConversation(
 		userId,
 		input.kind ?? 'chat',
 		input.title ?? '',
-		input.mode ?? 'chat',
+		input.mode ?? 'agent',
 		input.providerId ?? null,
 		input.modelId ?? null,
 		input.agentId ?? null,

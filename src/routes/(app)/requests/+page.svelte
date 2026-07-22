@@ -189,14 +189,12 @@
 				<Table.Row>
 					<Table.Head>Status</Table.Head>
 					<Table.Head>Endpoint</Table.Head>
-					<Table.Head>Requested model</Table.Head>
-					<Table.Head>Served</Table.Head>
-					<Table.Head>User</Table.Head>
-					<Table.Head>Key</Table.Head>
+					<Table.Head>Model</Table.Head>
+					<Table.Head>User / Key</Table.Head>
 					<Table.Head>Started</Table.Head>
-					<Table.Head>Latency</Table.Head>
-					<Table.Head>Tokens in / out</Table.Head>
-					<Table.Head>Cost</Table.Head>
+					<Table.Head class="text-right">Latency</Table.Head>
+					<Table.Head class="text-right">Tokens in / out</Table.Head>
+					<Table.Head class="text-right">Cost</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -216,45 +214,52 @@
 						<Table.Cell>
 							<Badge variant="secondary">{request.endpoint}</Badge>
 						</Table.Cell>
-						<Table.Cell class="max-w-48 truncate" title={request.requestedModel}>
-							{request.requestedModel}
-						</Table.Cell>
-						<Table.Cell class="text-muted-foreground">
-							{#if request.modelId}
-								<span class="inline-flex items-center gap-1">
-									{request.modelId}
-									{#if request.fallbackIndex > 0}
-										<Badge variant="outline">+{request.fallbackIndex}</Badge>
+						<Table.Cell class="max-w-0 w-full">
+							<div class="flex flex-col gap-0.5">
+								<span class="truncate font-medium" title={request.requestedModel}>
+									{request.requestedModel}
+								</span>
+								<span
+									class="truncate text-xs text-muted-foreground"
+									title={request.modelId ?? undefined}
+								>
+									{#if request.modelId}
+										{request.modelId}
+										{#if request.fallbackIndex > 0}
+											<Badge variant="outline" class="ml-1">+{request.fallbackIndex}</Badge>
+										{/if}
+									{:else}
+										—
 									{/if}
 								</span>
-							{:else}
-								—
-							{/if}
+							</div>
 						</Table.Cell>
-						<Table.Cell class="whitespace-nowrap text-muted-foreground">
-							{data.users[request.userId] ?? request.userId}
-						</Table.Cell>
-						<Table.Cell class="whitespace-nowrap text-muted-foreground">
-							{request.apiKeyId ? (data.keys[request.apiKeyId] ?? request.apiKeyId) : '—'}
+						<Table.Cell class="text-muted-foreground">
+							<div class="flex flex-col gap-0.5">
+								<span class="truncate">{data.users[request.userId] ?? request.userId}</span>
+								<span class="truncate text-xs">
+									{request.apiKeyId ? (data.keys[request.apiKeyId] ?? request.apiKeyId) : '—'}
+								</span>
+							</div>
 						</Table.Cell>
 						<Table.Cell class="whitespace-nowrap text-muted-foreground">
 							<span title={formatDateTime(request.startedAt, data.timeFormat)}>
 								{formatTimeAgo(request.startedAt)}
 							</span>
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground">
+						<Table.Cell class="whitespace-nowrap text-right text-muted-foreground">
 							{request.latencyMs !== null ? `${request.latencyMs} ms` : '—'}
 						</Table.Cell>
-						<Table.Cell class="whitespace-nowrap text-muted-foreground">
+						<Table.Cell class="whitespace-nowrap text-right text-muted-foreground">
 							{formatTokens(request.inputTokens, request.outputTokens)}
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground">
+						<Table.Cell class="whitespace-nowrap text-right text-muted-foreground">
 							{request.costUsd !== null ? formatCost(request.costUsd) : '—'}
 						</Table.Cell>
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={10} class="text-center text-muted-foreground">
+						<Table.Cell colspan={8} class="text-center text-muted-foreground">
 							No requests yet.
 						</Table.Cell>
 					</Table.Row>

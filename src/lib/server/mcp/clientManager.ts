@@ -43,9 +43,14 @@ export async function connectServer(
 	return { client, close: () => client.close() };
 }
 
+export interface TestConnectionTool {
+	name: string;
+	description?: string;
+}
+
 export interface TestConnectionResult {
 	ok: boolean;
-	tools: string[];
+	tools: TestConnectionTool[];
 	error?: string;
 }
 
@@ -63,7 +68,13 @@ export async function testConnection(db: Db, serverId: string): Promise<TestConn
 		const conn = await connectServer(row, TEST_CTX);
 		try {
 			const tools = await conn.client.tools();
-			return { ok: true, tools: Object.keys(tools) };
+			return {
+				ok: true,
+				tools: Object.entries(tools).map(([name, tool]) => ({
+					name,
+					description: typeof tool.description === 'string' ? tool.description : undefined
+				}))
+			};
 		} finally {
 			await conn.close();
 		}

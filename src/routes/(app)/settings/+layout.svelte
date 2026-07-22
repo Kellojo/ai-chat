@@ -27,7 +27,7 @@
 
 <div class="h-full overflow-y-auto [scrollbar-gutter:stable]">
 	<div class="mx-auto flex w-full max-w-7xl gap-8 p-6">
-		<nav class="flex w-40 shrink-0 flex-col gap-1">
+		<nav class="sticky top-6 flex w-40 shrink-0 flex-col gap-1 self-start">
 			<h1 class="mb-2 px-3 text-lg font-semibold">Settings</h1>
 			{#each visibleGroups as group (group.name)}
 				{#if group.name}

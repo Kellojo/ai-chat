@@ -7,6 +7,7 @@ import { createDocumentsServer } from './documents.js';
 import { createBashServer } from './bash.js';
 import { createSettingsServer } from './settings.js';
 import { createMemoryServer } from './memory.js';
+import { createAgentsServer } from './agents.js';
 
 export type BuiltinServerFactory = (ctx: CallerContext) => McpServer;
 
@@ -17,5 +18,6 @@ export const BUILTIN_SERVERS: Record<string, BuiltinServerFactory> = {
 	documents: createDocumentsServer,
 	bash: createBashServer,
 	settings: createSettingsServer,
-	memory: createMemoryServer
+	memory: createMemoryServer,
+	agents: createAgentsServer
 };

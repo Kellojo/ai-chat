@@ -16,7 +16,12 @@
 	let { data }: { data: PageData } = $props();
 
 	type RemoteTransport = 'http' | 'sse';
-	type TestResult = { name: string; ok: boolean; tools: string[]; error?: string };
+	type TestResult = {
+		name: string;
+		ok: boolean;
+		tools: { name: string; description?: string }[];
+		error?: string;
+	};
 
 	const transportLabels: Record<RemoteTransport, string> = {
 		http: 'HTTP',
@@ -357,8 +362,8 @@
 </Dialog.Root>
 
 <Dialog.Root bind:open={testOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
+	<Dialog.Content class="flex max-h-[85vh] flex-col">
+		<Dialog.Header class="shrink-0">
 			<Dialog.Title>Connection test — {testResult?.name}</Dialog.Title>
 			<Dialog.Description>
 				{#if testResult?.ok}
@@ -369,23 +374,30 @@
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if testResult}
-			{#if testResult.ok}
-				{#if testResult.tools.length > 0}
-					<div class="flex flex-wrap gap-2">
-						{#each testResult.tools as tool (tool)}
-							<Badge variant="secondary">{tool}</Badge>
-						{/each}
-					</div>
+			<div class="min-h-0 overflow-y-auto">
+				{#if testResult.ok}
+					{#if testResult.tools.length > 0}
+						<ul class="flex flex-col gap-2">
+							{#each testResult.tools as tool (tool.name)}
+								<li class="flex flex-col gap-0.5">
+									<Badge variant="secondary" class="self-start">{tool.name}</Badge>
+									{#if tool.description}
+										<span class="text-xs text-muted-foreground">{tool.description}</span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="text-sm text-muted-foreground">The server exposes no tools.</p>
+					{/if}
 				{:else}
-					<p class="text-sm text-muted-foreground">The server exposes no tools.</p>
+					<p class="text-sm wrap-break-word text-destructive">
+						{testResult.error ?? 'Unknown error'}
+					</p>
 				{/if}
-			{:else}
-				<p class="text-sm wrap-break-word text-destructive">
-					{testResult.error ?? 'Unknown error'}
-				</p>
-			{/if}
+			</div>
 		{/if}
-		<Dialog.Footer>
+		<Dialog.Footer class="shrink-0">
 			<Button variant="outline" onclick={() => (testOpen = false)}>Close</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
