@@ -11,8 +11,11 @@ import {
 	updateAgent
 } from '../../db/repo/agents.js';
 import { AGENT_EVENT_NAMES, type AgentTriggerType } from '../../../types.js';
+import { createLogger } from '../../logger.js';
 import type { CallerContext } from '../types.js';
 import { err, text } from './shared.js';
+
+const log = createLogger('mcp:agents');
 
 const triggerConfigSchema = z.object({
 	cron: z.string().optional(),
@@ -47,6 +50,7 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 		async () => {
 			const db = getDb();
 			const rows = listAgents(db, ctx.userId);
+			log.info('list_agents', { userId: ctx.userId, count: rows.length });
 			return text(
 				JSON.stringify(
 					rows.map((r) => {
@@ -78,8 +82,10 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 			const db = getDb();
 			const agent = getAgent(db, agentId);
 			if (!agent || (agent.user_id !== ctx.userId && agent.user_id !== null)) {
+				log.warn('get_agent not found', { userId: ctx.userId, agentId });
 				return err('agent not found');
 			}
+			log.info('get_agent', { userId: ctx.userId, agentId });
 			return text(JSON.stringify(toPublic(agent)));
 		}
 	);
@@ -134,6 +140,12 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 				enabled,
 				nextRunAt
 			});
+			log.info('create_agent', {
+				userId: ctx.userId,
+				agentId: agent.id,
+				name: input.name,
+				triggerType: input.triggerType
+			});
 			return text(JSON.stringify(toPublic(agent)));
 		}
 	);
@@ -162,9 +174,11 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 			const db = getDb();
 			const existing = getAgent(db, agentId);
 			if (!existing || (existing.user_id !== ctx.userId && existing.user_id !== null)) {
+				log.warn('update_agent not found', { userId: ctx.userId, agentId });
 				return err('agent not found');
 			}
 			if (existing.user_id === null) {
+				log.warn('update_agent builtin attempt', { userId: ctx.userId, agentId });
 				return err('built-in agents cannot be modified');
 			}
 			if ((patch.providerId === undefined) !== (patch.modelId === undefined)) {
@@ -198,6 +212,7 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 				triggerConfig: patch.triggerConfig !== undefined ? triggerConfig : undefined,
 				...(nextRunAt !== undefined ? { nextRunAt } : {})
 			});
+			log.info('update_agent', { userId: ctx.userId, agentId, fields: Object.keys(patch) });
 			return text(JSON.stringify(toPublic(updated!)));
 		}
 	);
@@ -212,12 +227,15 @@ export function createAgentsServer(ctx: CallerContext): McpServer {
 			const db = getDb();
 			const existing = getAgent(db, agentId);
 			if (!existing || (existing.user_id !== ctx.userId && existing.user_id !== null)) {
+				log.warn('delete_agent not found', { userId: ctx.userId, agentId });
 				return err('agent not found');
 			}
 			if (existing.user_id === null) {
+				log.warn('delete_agent builtin attempt', { userId: ctx.userId, agentId });
 				return err('built-in agents cannot be deleted');
 			}
 			deleteAgent(db, agentId);
+			log.info('delete_agent', { userId: ctx.userId, agentId });
 			return text(`deleted agent ${agentId}`);
 		}
 	);

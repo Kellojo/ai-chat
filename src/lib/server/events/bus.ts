@@ -1,4 +1,7 @@
 import type { ServerEvent } from '$lib/types.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('events');
 
 export type ServerEventListener = (userId: string, event: ServerEvent) => void;
 
@@ -23,7 +26,9 @@ export function publishServerEvent(userId: string, event: ServerEvent): void {
 		try {
 			listener(userId, event);
 		} catch (e) {
-			console.error('Server event listener failed', e);
+			log.error('Server event listener failed', {
+				error: e instanceof Error ? e.message : String(e)
+			});
 		}
 	}
 }

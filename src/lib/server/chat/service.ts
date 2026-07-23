@@ -30,6 +30,7 @@ import { getAgent } from '../db/repo/agents.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { getGlobalInstructions } from '../db/repo/user-settings.js';
 import { publishServerEvent } from '../events/bus.js';
+import { createLogger } from '../logger.js';
 import { resolveModel, ModelUnavailableError } from '../llm/registry.js';
 import { isRetryableModelError, resolveRefTargets } from '../llm/mapped.js';
 import { buildSystemPrompt } from '../llm/systemPrompt.js';
@@ -37,6 +38,8 @@ import { buildTools } from '../tools/registry.js';
 import { conversationWorkspace, resolveAttachment } from '../workspaces.js';
 import { registerStream, releaseStream } from './streams.js';
 import { generateConversationTitle } from './title.js';
+
+const log = createLogger('chat');
 
 export class ChatRequestError extends Error {
 	constructor(
@@ -185,12 +188,20 @@ export async function handleChatRequest(
 		onError: () => errorText ?? 'An error occurred while generating the response',
 		execute: async ({ writer }) => {
 			let lastError: unknown = null;
+			let totalTokensUsed: import('ai').LanguageModelUsage | undefined;
 			for (let i = 0; i < targets.length; i++) {
 				const target = targets[i];
 				let contentful = false;
 				const buffer: UIMessageChunk[] = [];
 				try {
 					const model = resolveModel(target);
+					log.info('LLM inference started', {
+						conversationId: conversation.id,
+						providerId: target.providerId,
+						modelId: target.modelId,
+						streamIndex: i,
+						totalStreams: targets.length
+					});
 					const result = streamText({
 						model,
 						system,
@@ -198,41 +209,47 @@ export async function handleChatRequest(
 						messages: modelMessages,
 						stopWhen,
 						abortSignal: controller.signal,
-						...(conversation.temperature != null
-							? { temperature: conversation.temperature }
-							: {}),
+						...(conversation.temperature != null ? { temperature: conversation.temperature } : {}),
 						...(conversation.max_tokens != null
 							? { maxOutputTokens: conversation.max_tokens }
 							: {}),
-					onError: ({ error }) => {
-						errorText = error instanceof Error ? error.message : String(error);
+						onError: ({ error }) => {
+							errorText = error instanceof Error ? error.message : String(error);
+						}
+					});
+					const uiStream = result.toUIMessageStream({
+						originalMessages: body.messages,
+						generateMessageId: () => randomUUID()
+					});
+					for await (const chunk of uiStream) {
+						const c = chunk as { type?: string };
+						if (c.type === 'error') throw new Error(errorText ?? 'An error occurred');
+						const isContent =
+							c.type === 'text-delta' ||
+							c.type === 'tool-input-start' ||
+							c.type === 'tool-input-delta' ||
+							c.type === 'tool-input-available';
+						if (!isContent) {
+							if (!contentful) buffer.push(chunk);
+							else writer.write(chunk);
+							continue;
+						}
+						if (!contentful) {
+							contentful = true;
+							for (const b of buffer) writer.write(b);
+							buffer.length = 0;
+						}
+						writer.write(chunk);
 					}
-				});
-				const uiStream = result.toUIMessageStream({
-					originalMessages: body.messages,
-					generateMessageId: () => randomUUID()
-				});
-				for await (const chunk of uiStream) {
-					const c = chunk as { type?: string };
-					if (c.type === 'error') throw new Error(errorText ?? 'An error occurred');
-					const isContent =
-						c.type === 'text-delta' ||
-						c.type === 'tool-input-start' ||
-						c.type === 'tool-input-delta' ||
-						c.type === 'tool-input-available';
-					if (!isContent) {
-						if (!contentful) buffer.push(chunk);
-						else writer.write(chunk);
-						continue;
-					}
-					if (!contentful) {
-						contentful = true;
-						for (const b of buffer) writer.write(b);
-						buffer.length = 0;
-					}
-					writer.write(chunk);
-				}
-				return;
+					totalTokensUsed = await result.usage;
+					log.info('LLM inference finished', {
+						conversationId: conversation.id,
+						streamIndex: i,
+						inputTokens: totalTokensUsed?.inputTokens ?? null,
+						outputTokens: totalTokensUsed?.outputTokens ?? null,
+						totalTokens: totalTokensUsed?.totalTokens ?? null
+					});
+					return;
 				} catch (e) {
 					lastError = e;
 					if (!contentful && i < targets.length - 1 && isRetryableModelError(e)) continue;
@@ -268,7 +285,10 @@ export async function handleChatRequest(
 					);
 				}
 			} catch (e) {
-				console.error('Failed to persist assistant message', e);
+				log.error('Failed to persist assistant message', {
+					conversationId: conversation.id,
+					error: e instanceof Error ? e.message : String(e)
+				});
 			} finally {
 				releaseStream(conversation.id, controller);
 				publishServerEvent(userId, {

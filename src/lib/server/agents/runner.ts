@@ -20,10 +20,13 @@ import { createConversation } from '../db/repo/conversations.js';
 import { createMessage, updateMessage } from '../db/repo/messages.js';
 import { findRoleModel } from '../db/repo/models.js';
 import { publishServerEvent } from '../events/bus.js';
+import { createLogger } from '../logger.js';
 import { resolveModel } from '../llm/registry.js';
 import { isRetryableModelError, resolveRefTargets } from '../llm/mapped.js';
 import { buildTools } from '../tools/registry.js';
 import { ensureAgentWorkspace } from '../workspaces.js';
+
+const log = createLogger('agents');
 
 export interface StartAgentRunInput {
 	agentId: string;
@@ -132,6 +135,13 @@ export async function startAgentRun(
 		const runTarget = async (target: { providerId: string; modelId: string }) => {
 			let contentful = false;
 			const model = resolveModel(target);
+			log.info('LLM inference started', {
+				runId: run.id,
+				agentId: agent.id,
+				providerId: target.providerId,
+				modelId: target.modelId
+			});
+			let totalUsage: import('ai').LanguageModelUsage | undefined;
 			const result = streamText({
 				model,
 				system,
@@ -173,6 +183,14 @@ export async function startAgentRun(
 					});
 				}
 			}
+			totalUsage = await result.usage;
+			log.info('LLM inference finished', {
+				runId: run.id,
+				agentId: agent.id,
+				inputTokens: totalUsage?.inputTokens ?? null,
+				outputTokens: totalUsage?.outputTokens ?? null,
+				totalTokens: totalUsage?.totalTokens ?? null
+			});
 			return contentful;
 		};
 
@@ -186,7 +204,11 @@ export async function startAgentRun(
 					break;
 				} catch (e) {
 					lastError = e;
-					if (assistantMessageIds.length === 0 && i < targets.length - 1 && isRetryableModelError(e)) {
+					if (
+						assistantMessageIds.length === 0 &&
+						i < targets.length - 1 &&
+						isRetryableModelError(e)
+					) {
 						errorText = null;
 						continue;
 					}
@@ -217,7 +239,11 @@ export async function startAgentRun(
 		}
 		return getAgentRun(db, run.id)!;
 	})().catch((e) => {
-		console.error('Agent run failed unexpectedly', e);
+		log.error('Agent run failed unexpectedly', {
+			runId: run.id,
+			agentId: agent.id,
+			error: e instanceof Error ? e.message : String(e)
+		});
 		try {
 			finishAgentRun(db, run.id, 'failed', e instanceof Error ? e.message : String(e));
 		} catch {

@@ -9,22 +9,25 @@ import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
 import { failRunningProxyRequests } from '$lib/server/db/repo/proxy-requests.js';
+import { createLogger } from '$lib/server/logger.js';
 import { reconcileMemoryFts } from '$lib/server/memory/fts.js';
+
+const log = createLogger('server');
 
 if (!building) {
 	seedBuiltinAgent(getDb());
 	seedMemoryCleanupAgent(getDb());
 	const interrupted = failRunningAgentRuns(getDb());
 	if (interrupted > 0) {
-		console.warn(`Marked ${interrupted} interrupted agent run(s) as failed`);
+		log.warn(`Marked ${interrupted} interrupted agent run(s) as failed`);
 	}
 	const interruptedProxy = failRunningProxyRequests(getDb());
 	if (interruptedProxy > 0) {
-		console.warn(`Marked ${interruptedProxy} interrupted proxy request(s) as failed`);
+		log.warn(`Marked ${interruptedProxy} interrupted proxy request(s) as failed`);
 	}
 	const { upserted, removed } = reconcileMemoryFts(getDb());
 	if (upserted > 0 || removed > 0) {
-		console.log(`Memory index reconciled: ${upserted} upserted, ${removed} removed`);
+		log.info(`Memory index reconciled: ${upserted} upserted, ${removed} removed`);
 	}
 	startAgentEventDispatcher();
 	startAgentScheduler(getDb());

@@ -7,8 +7,11 @@ import {
 	listDueScheduleAgents,
 	listOverridesForAgent
 } from '../db/repo/agents.js';
+import { createLogger } from '../logger.js';
 import { gcAgentWorkspaces } from '../workspaces.js';
 import { startAgentRun } from './runner.js';
+
+const log = createLogger('agents');
 
 export function isValidCron(cron: string): boolean {
 	try {
@@ -70,7 +73,10 @@ export async function tickAgents(
 				await run(agent.id, agent.user_id);
 			}
 		} catch (e) {
-			console.error(`Scheduled run of agent ${agent.id} failed`, e);
+			log.error(`Scheduled run of agent ${agent.id} failed`, {
+				agentId: agent.id,
+				error: e instanceof Error ? e.message : String(e)
+			});
 		} finally {
 			inFlight.delete(agent.id);
 		}
@@ -78,7 +84,7 @@ export async function tickAgents(
 	if (Date.now() - lastGc > 24 * 60 * 60 * 1000) {
 		lastGc = Date.now();
 		const removed = gcAgentWorkspaces(config.WORKSPACE_GC_DAYS);
-		if (removed > 0) console.log(`Removed ${removed} stale agent workspace(s)`);
+		if (removed > 0) log.info(`Removed ${removed} stale agent workspace(s)`);
 	}
 	return started;
 }
@@ -88,8 +94,14 @@ let timer: ReturnType<typeof setInterval> | null = null;
 export function startAgentScheduler(db: Db = getDb()): void {
 	if (timer) return;
 	timer = setInterval(() => {
-		tickAgents(db).catch(console.error);
+		tickAgents(db).catch((e) =>
+			log.error('Agent scheduler tick failed', {
+				error: e instanceof Error ? e.message : String(e)
+			})
+		);
 	}, 30_000);
 	timer.unref?.();
-	void tickAgents(db).catch(console.error);
+	void tickAgents(db).catch((e) =>
+		log.error('Agent scheduler tick failed', { error: e instanceof Error ? e.message : String(e) })
+	);
 }

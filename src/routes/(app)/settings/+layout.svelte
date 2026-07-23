@@ -13,7 +13,8 @@
 		{ href: '/settings/defaults', label: 'Model Defaults', adminOnly: true, group: 'Models' },
 		{ href: '/settings/api', label: 'API', adminOnly: false, group: 'Other' },
 		{ href: '/settings/memory', label: 'Memory', adminOnly: false, group: 'Other' },
-		{ href: '/settings/mcp', label: 'MCP', adminOnly: true, group: 'Other' }
+		{ href: '/settings/mcp', label: 'MCP', adminOnly: true, group: 'Other' },
+		{ href: '/settings/search', label: 'Search', adminOnly: true, group: 'Other' }
 	] as const;
 
 	const isAdmin = $derived(data.user.role === 'admin');
@@ -25,7 +26,7 @@
 	);
 </script>
 
-<div class="h-full overflow-y-auto [scrollbar-gutter:stable]">
+<div class="h-full [scrollbar-gutter:stable] overflow-y-auto">
 	<div class="mx-auto flex w-full max-w-7xl gap-8 p-6">
 		<nav class="sticky top-6 flex w-40 shrink-0 flex-col gap-1 self-start">
 			<h1 class="mb-2 px-3 text-lg font-semibold">Settings</h1>

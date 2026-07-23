@@ -3,9 +3,12 @@ import type { Tool } from 'ai';
 import { config } from '../config.js';
 import { getDb } from '../db/index.js';
 import { listEnabledMcpServers, type McpMode } from '../db/repo/mcp-servers.js';
+import { createLogger } from '../logger.js';
 import { connectServer } from '../mcp/clientManager.js';
 import type { CallerContext } from '../mcp/types.js';
 import { wrapMcpTools } from './wrap.js';
+
+const log = createLogger('tools');
 
 export interface BuildToolsInput {
 	userId: string;
@@ -53,14 +56,16 @@ export async function buildTools(input: BuildToolsInput): Promise<BuiltTools> {
 			);
 			for (const [name, tool] of Object.entries(set)) {
 				if (tools[name]) {
-					console.warn(`MCP tool name collision: "${name}" from ${row.name} skipped`);
+					log.warn(`MCP tool name collision: "${name}" from ${row.name} skipped`);
 					continue;
 				}
 				tools[name] = tool;
 				toolToServer[name] = row.name;
 			}
 		} catch (e) {
-			console.warn(`MCP server ${row.name} unavailable:`, e instanceof Error ? e.message : e);
+			log.warn(`MCP server ${row.name} unavailable:`, {
+				error: e instanceof Error ? e.message : String(e)
+			});
 		}
 	}
 	let filtered = tools;

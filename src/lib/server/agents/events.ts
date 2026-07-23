@@ -12,6 +12,9 @@ import {
 	listOverridesForAgent
 } from '../db/repo/agents.js';
 import { subscribeAllServerEvents } from '../events/bus.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('agents');
 
 export async function emitAgentEvent(
 	event: AgentEventName,
@@ -54,11 +57,18 @@ export async function emitAgentEvent(
 					: `The event "${event}" just occurred (occurrence #${count}). Payload: ${payloadJson}. Act on it according to your role.`;
 				await run(agent.id, userId, instructions);
 			} catch (e) {
-				console.error(`Event run of agent ${agent.id} failed`, e);
+				log.error(`Event run of agent ${agent.id} failed`, {
+					agentId: agent.id,
+					event,
+					error: e instanceof Error ? e.message : String(e)
+				});
 			}
 		}
 	} catch (e) {
-		console.error(`Failed to emit agent event ${event}`, e);
+		log.error(`Failed to emit agent event ${event}`, {
+			event,
+			error: e instanceof Error ? e.message : String(e)
+		});
 	}
 }
 
