@@ -8,7 +8,6 @@ import {
 	listOverridesForAgent
 } from '../db/repo/agents.js';
 import { createLogger } from '../logger.js';
-import { gcAgentWorkspaces } from '../workspaces.js';
 import { startAgentRun } from './runner.js';
 
 const log = createLogger('agents');
@@ -33,7 +32,6 @@ export function computeNextRunAt(cron: string, from: number = Date.now()): numbe
 }
 
 const inFlight = new Set<string>();
-let lastGc = 0;
 
 export async function tickAgents(
 	db: Db = getDb(),
@@ -80,11 +78,6 @@ export async function tickAgents(
 		} finally {
 			inFlight.delete(agent.id);
 		}
-	}
-	if (Date.now() - lastGc > 24 * 60 * 60 * 1000) {
-		lastGc = Date.now();
-		const removed = gcAgentWorkspaces(config.WORKSPACE_GC_DAYS);
-		if (removed > 0) log.info(`Removed ${removed} stale agent workspace(s)`);
 	}
 	return started;
 }

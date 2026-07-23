@@ -1,3 +1,5 @@
+/// <reference types="@vite-pwa/sveltekit" />
+
 declare global {
 	namespace App {
 		interface Locals {

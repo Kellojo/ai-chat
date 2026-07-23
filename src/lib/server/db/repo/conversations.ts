@@ -192,6 +192,26 @@ export function softDeleteConversation(db: Db, userId: string, id: string): bool
 	);
 }
 
+export function listSoftDeletedBefore(db: Db, cutoffMs: number): string[] {
+	return (
+		db
+			.prepare('SELECT id FROM conversations WHERE deleted_at IS NOT NULL AND deleted_at < ?')
+			.all(cutoffMs) as { id: string }[]
+	).map((r) => r.id);
+}
+
+export function purgeConversation(db: Db, id: string): void {
+	// Attachments linked to messages, plus any orphaned uploads still pointing at
+	// this conversation's workspace (path prefix "<id>/").
+	db.prepare(
+		`DELETE FROM attachments
+		 WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?)
+		    OR path LIKE ?`
+	).run(id, `${id}/%`);
+	db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+	db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
+}
+
 export function togglePin(db: Db, userId: string, id: string): ConversationRow | undefined {
 	const existing = getConversation(db, userId, id);
 	if (!existing) return undefined;

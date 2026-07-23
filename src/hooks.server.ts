@@ -9,6 +9,7 @@ import { startAgentScheduler } from '$lib/server/agents/scheduler.js';
 import { getDb } from '$lib/server/db/index.js';
 import { failRunningAgentRuns } from '$lib/server/db/repo/agent-runs.js';
 import { failRunningProxyRequests } from '$lib/server/db/repo/proxy-requests.js';
+import { startDailyJobs } from '$lib/server/jobs.js';
 import { createLogger } from '$lib/server/logger.js';
 import { reconcileMemoryFts } from '$lib/server/memory/fts.js';
 
@@ -31,6 +32,7 @@ if (!building) {
 	}
 	startAgentEventDispatcher();
 	startAgentScheduler(getDb());
+	startDailyJobs(getDb());
 }
 
 const authRoutes: Handle = ({ event, resolve }) =>
