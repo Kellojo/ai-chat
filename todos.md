@@ -6,9 +6,6 @@ General Questions:
 
 Todos:
 
-- Add loggs to see better what is going on (console should be enough)
-- SearXNG MCP / web search functionalities, configured using a websearch page
-- Try out OIDC
 
 - Add additional default provider types, such as: LM Studio, Openrouter, with prefilled url, maybe even icons in the ui?
 - switch all sync fs method calls to their async counterparts
@@ -23,6 +20,7 @@ Next Steps:
 - M8 Deep research
 
 Ideas for later
+
 - Uploading photos to the AI from the phone (i.e. take a photo directly ideally)
 - For webfetch mcp, convert the html to .md first ad optional parameter
 

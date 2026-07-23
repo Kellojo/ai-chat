@@ -45,12 +45,6 @@ export function authOptions(): BetterAuthOptions {
 				}
 			}
 		},
-		account: {
-			accountLinking: {
-				enabled: true,
-				trustedProviders: ['oidc']
-			}
-		},
 		plugins: [...(oidc ? [genericOAuth({ config: [oidc] })] : [])]
 	};
 }
