@@ -1,6 +1,16 @@
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@better-auth/core@1.6.25'
+  - '@better-auth/drizzle-adapter@1.6.25'
+  - '@better-auth/kysely-adapter@1.6.25'
+  - '@better-auth/memory-adapter@1.6.25'
+  - '@better-auth/mongo-adapter@1.6.25'
+  - '@better-auth/prisma-adapter@1.6.25'
+  - '@better-auth/telemetry@1.6.25'
+  - ai@7.0.36
+  - better-auth@1.6.25
 onlyBuiltDependencies:
   - better-sqlite3
   - esbuild
